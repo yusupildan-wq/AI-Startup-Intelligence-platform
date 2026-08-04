@@ -3,11 +3,11 @@ TOOLING_ESTIMATE = 300
 
 
 def compute_monthly_snapshot(previous_snapshot, customer_count, employee_count, marketing_spend):
-    revenue = customer_count * previous_snapshot["price_per_customer"]
+    revenue = customer_count * float(previous_snapshot["price_per_customer"])
     payroll = employee_count * AVERAGE_SALARY
     monthly_costs = payroll + marketing_spend + TOOLING_ESTIMATE
     burn_rate = monthly_costs - revenue
-    cash_on_hand = previous_snapshot["cash_on_hand"] - burn_rate
+    cash_on_hand = float(previous_snapshot["cash_on_hand"]) - burn_rate
 
     if burn_rate > 0:
         runway_months = cash_on_hand / burn_rate
