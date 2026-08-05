@@ -1,7 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from state_store import insert_startup
+from state_store import insert_startup, get_startup
 from orchestrator import run_month
 
 app = FastAPI()
@@ -41,6 +41,9 @@ def create_startup(request: CreateStartupRequest):
 
 @app.post("/startups/{startup_id}/simulate-next-month")
 def simulate_next_month(startup_id: int, request: SimulateMonthRequest):
+    if get_startup(startup_id) is None:
+        raise HTTPException(status_code=404, detail="Startup not found")
+
     return run_month(
         startup_id=startup_id,
         marketing_spend=request.marketing_spend,
