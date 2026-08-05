@@ -1,12 +1,23 @@
 from prediction_engine import train_churn_model, predict_churn_probability
 from calculation_engine import compute_monthly_snapshot
-from state_store import get_latest_snapshot, insert_monthly_snapshot
+from state_store import get_latest_snapshot, insert_monthly_snapshot, get_startup
 
 _model, _ = train_churn_model()
 
 
 def run_month(startup_id, marketing_spend, employee_count, avg_days_since_login=15, avg_support_tickets=1):
     previous = get_latest_snapshot(startup_id)
+
+    if previous is None:
+        startup = get_startup(startup_id)
+        previous = {
+            "month_number": 0,
+            "cash_on_hand": startup["initial_funding"],
+            "customer_count": startup["initial_customer_count"],
+            "investor_count": 0,
+            "funding_raised_to_date": startup["initial_funding"],
+            "price_per_customer": startup["initial_price"],
+        }
 
     churn_probability = predict_churn_probability(
         _model, avg_days_since_login, avg_support_tickets, float(previous["price_per_customer"])

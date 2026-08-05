@@ -14,20 +14,31 @@ def get_connection():
     return psycopg2.connect(**DB_CONFIG)
 
 
-def insert_startup(name, business_type, initial_price, founder_count, initial_funding):
+def insert_startup(name, business_type, initial_price, founder_count, initial_funding, initial_customer_count=0):
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO startups (name, business_type, initial_price, founder_count, initial_funding)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO startups (name, business_type, initial_price, founder_count, initial_funding, initial_customer_count)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
-                (name, business_type, initial_price, founder_count, initial_funding),
+                (name, business_type, initial_price, founder_count, initial_funding, initial_customer_count),
             )
             startup_id = cur.fetchone()[0]
         conn.commit()
     return startup_id
+
+
+def get_startup(startup_id):
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT * FROM startups WHERE id = %s",
+                (startup_id,),
+            )
+            row = cur.fetchone()
+    return dict(row) if row else None
 
 
 def insert_monthly_snapshot(

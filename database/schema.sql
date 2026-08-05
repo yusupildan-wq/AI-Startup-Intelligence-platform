@@ -5,6 +5,7 @@ CREATE TABLE startups (
     initial_price NUMERIC(10,2) NOT NULL,
     founder_count INTEGER NOT NULL,
     initial_funding NUMERIC(12,2) NOT NULL,
+    initial_customer_count INTEGER NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT now()
 );
 
