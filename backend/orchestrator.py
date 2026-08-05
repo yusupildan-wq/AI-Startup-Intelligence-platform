@@ -1,6 +1,7 @@
 from prediction_engine import train_churn_model, predict_churn_probability
 from calculation_engine import compute_monthly_snapshot
 from state_store import get_latest_snapshot, insert_monthly_snapshot, get_startup
+from narration_layer import generate_narration
 
 _model, _ = train_churn_model()
 
@@ -48,4 +49,15 @@ def run_month(startup_id, marketing_spend, employee_count, avg_days_since_login=
         marketing_spend=computed["marketing_spend"],
     )
 
-    return computed
+    narration_input = {
+        "month_number": next_month_number,
+        "revenue": computed["revenue"],
+        "customer_count": computed["customer_count"],
+        "customers_churned": customers_churned,
+        "cash_on_hand": computed["cash_on_hand"],
+        "marketing_spend": computed["marketing_spend"],
+        "employee_count": computed["employee_count"],
+    }
+    narration = generate_narration(narration_input)
+
+    return {**computed, "narration": narration}
