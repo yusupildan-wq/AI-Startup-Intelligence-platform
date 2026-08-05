@@ -1,0 +1,24 @@
+import os
+from dotenv import load_dotenv
+from openai import OpenAI
+
+load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+
+def generate_narration(snapshot):
+    prompt = f"""Write a short, 2-3 sentence summary of month {snapshot['month_number']} for a startup founder.
+Only describe the facts given below. Do not invent or estimate any numbers not listed here.
+
+Revenue: ${snapshot['revenue']}
+Total customers: {snapshot['customer_count']}
+Customers churned this month: {snapshot['customers_churned']}
+Cash on hand: ${snapshot['cash_on_hand']}
+Marketing spend: ${snapshot['marketing_spend']}
+Employees: {snapshot['employee_count']}"""
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.choices[0].message.content
