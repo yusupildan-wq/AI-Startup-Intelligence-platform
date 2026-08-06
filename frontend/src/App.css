@@ -478,6 +478,17 @@
 .dataset-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 11px 13px; border: 1px solid var(--border-soft); border-radius: 9px; }
 .dataset-row div { display: flex; flex-direction: column; gap: 3px; }
 .dataset-row span, .dataset-row code { color: var(--text-muted); font-size: 10px; }
+.registry-count { color: var(--success); border: 1px solid var(--border-soft); border-radius: 999px; padding: 7px 12px; font-size: 11px; }
+.registry-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 18px; }
+.registry-model { border: 1px solid var(--border-soft); border-radius: 10px; padding: 13px; background: var(--bg); }
+.registry-model summary { cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.registry-model summary > span { display: flex; flex-direction: column; gap: 4px; }
+.registry-model summary small { color: var(--text-muted); font-size: 10px; font-weight: 400; }
+.registry-model summary b { color: var(--success); font-size: 9px; text-transform: uppercase; }
+.registry-lineage { display: grid; grid-template-columns: 110px 1fr; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-soft); }
+.registry-lineage span { color: var(--text-muted); font-size: 10px; }
+.registry-lineage code { overflow: hidden; text-overflow: ellipsis; color: var(--accent); font-size: 9px; }
+.registry-model p { color: var(--text-muted); font-size: 10px; line-height: 1.5; margin-bottom: 0; }
 
 .badge {
   display: inline-flex;
@@ -644,4 +655,5 @@
   .data-import-grid { grid-template-columns: 1fr; }
   .official-data-actions { width: 100%; flex-direction: column; }
   .dataset-row { align-items: flex-start; flex-direction: column; }
+  .registry-grid { grid-template-columns: 1fr; }
 }

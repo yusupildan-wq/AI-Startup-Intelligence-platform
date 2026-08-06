@@ -185,6 +185,13 @@ interface DatasetImport {
   content_sha256: string; row_count: number; imported_at: string
 }
 
+interface RegistryModel {
+  model_id: string; version: string; status: string; artifact_bytes: number
+  artifact_sha256: string; training_code: string; training_code_sha256: string
+  reproduce_command: string; data_lineage: { source: string; kind: string }
+  limitations: string
+}
+
 function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(
     (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
@@ -243,6 +250,7 @@ function App() {
   const [secCik, setSecCik] = useState('0000320193')
   const [csvName, setCsvName] = useState('My startup observations')
   const [csvText, setCsvText] = useState('date,series,value,unit,entity\n2026-01,MRR,12000,USD,My Startup')
+  const [registry, setRegistry] = useState<RegistryModel[]>([])
 
   useEffect(() => {
     fetch(`${API_URL}/model-metrics`)
@@ -257,9 +265,13 @@ function App() {
 
   useEffect(() => {
     if (!token) return
-    fetch(`${API_URL}/datasets`, { headers: { Authorization: `Bearer ${token}` } })
-      .then((res) => res.ok ? res.json() : [])
-      .then(setDatasets)
+    const headers = { Authorization: `Bearer ${token}` }
+    Promise.all([
+      fetch(`${API_URL}/datasets`, { headers }).then((res) => res.ok ? res.json() : []),
+      fetch(`${API_URL}/ml/registry`, { headers }).then((res) => res.ok ? res.json() : []),
+    ]).then(([loadedDatasets, loadedRegistry]) => {
+      setDatasets(loadedDatasets); setRegistry(loadedRegistry)
+    })
   }, [token])
 
   useEffect(() => {
@@ -844,6 +856,30 @@ function App() {
               <div><strong>{dataset.dataset_name}</strong><span>{dataset.source.replace(/_/g, ' ')} · {dataset.row_count.toLocaleString()} observations</span></div>
               <code title={dataset.content_sha256}>SHA-256 {dataset.content_sha256.slice(0, 12)}…</code>
             </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card registry-card">
+        <div className="section-heading">
+          <div>
+            <h2>Experiment & Model Registry</h2>
+            <p className="card-sub">Cryptographic lineage for every active learned system—not a hand-written benchmark panel.</p>
+          </div>
+          <span className="registry-count">{registry.length} versioned artifacts</span>
+        </div>
+        <div className="registry-grid">
+          {registry.map((model) => (
+            <details className="registry-model" key={model.model_id}>
+              <summary><span><strong>{model.model_id.replace(/_/g, ' ')}</strong><small>{model.data_lineage.kind} · {(model.artifact_bytes / 1e6).toFixed(1)} MB</small></span><b>{model.status}</b></summary>
+              <div className="registry-lineage">
+                <span>Training data</span><code>{model.data_lineage.source}</code>
+                <span>Artifact SHA-256</span><code>{model.artifact_sha256}</code>
+                <span>Training-code SHA-256</span><code>{model.training_code_sha256}</code>
+                <span>Reproduce</span><code>{model.reproduce_command}</code>
+              </div>
+              <p>{model.limitations}</p>
+            </details>
           ))}
         </div>
       </div>

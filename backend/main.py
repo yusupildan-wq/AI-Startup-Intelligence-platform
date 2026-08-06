@@ -19,6 +19,7 @@ from ml.population_models import load_population_models
 from ml.economy_agents import load_economy_agents
 from ml.world_generator import generate_learned_world, load_world_generator
 from ml.trajectory_model import generate_trajectories, load_trajectory_model
+from ml.registry import model_registry
 from world import WorldEngine, create_world
 from world.events import ACTION_TYPES, SHOCK_TYPES
 from world.store import (
@@ -425,6 +426,11 @@ def generate_world_trajectories(world_id: str, branch_id: str, request: Generate
 def get_datasets(user_id: int = Depends(verify_token)):
     ensure_data_storage()
     return list_datasets(user_id)
+
+
+@app.get("/ml/registry")
+def get_model_registry(user_id: int = Depends(verify_token)):
+    return model_registry()
 
 
 @app.get("/datasets/{import_id}/observations")
