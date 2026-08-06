@@ -110,6 +110,12 @@ class ModelBasedPlanRequest(BaseModel):
     seed: int = 932
 
 
+class HumanAiComparisonRequest(BaseModel):
+    human_action: str
+    risk_aversion: float = 0.65
+    seed: int = 1776
+
+
 class OfficialDataImportRequest(BaseModel):
     source: str
     cik: str | None = None
@@ -390,6 +396,15 @@ def inspect_world(world_id: str, branch_id: str, user_id: int = Depends(verify_t
     return get_owned_world_engine(world_id, branch_id, user_id).state.to_dict()
 
 
+@app.get("/worlds/{world_id}/branches/{branch_id}/replay/{month}")
+def replay_world_month(world_id: str, branch_id: str, month: int,
+                       user_id: int = Depends(verify_token)):
+    engine = get_owned_world_engine(world_id, branch_id, user_id)
+    if month not in engine.snapshots:
+        raise HTTPException(status_code=404, detail="Snapshot not found for this month")
+    return engine.snapshots[month].to_dict()
+
+
 @app.post("/worlds/{world_id}/branches/{branch_id}/advance")
 def advance_world(world_id: str, branch_id: str, request: AdvanceWorldRequest,
                   user_id: int = Depends(verify_token)):
@@ -448,6 +463,29 @@ def get_model_based_ceo(world_id: str, branch_id: str, request: ModelBasedPlanRe
     engine = get_owned_world_engine(world_id, branch_id, user_id)
     return plan_actions(engine.state, request.horizon, request.beam_width, request.paths,
                         request.risk_aversion, request.seed)
+
+
+@app.post("/worlds/{world_id}/branches/{branch_id}/compare-human-ai")
+def compare_human_ai(world_id: str, branch_id: str, request: HumanAiComparisonRequest,
+                     user_id: int = Depends(verify_token)):
+    if request.human_action not in ACTION_TYPES:
+        raise HTTPException(status_code=422, detail="Unknown human action")
+    if not 0 <= request.risk_aversion <= 1:
+        raise HTTPException(status_code=422, detail="Risk aversion must be between 0 and 1")
+    parent = get_owned_world_engine(world_id, branch_id, user_id)
+    plan = plan_actions(parent.state, horizon=12, beam_width=8, paths=40,
+                        risk_aversion=request.risk_aversion, seed=request.seed)
+    ai_action = plan["recommendation"]["first_action"]
+    suffix = secrets.token_hex(3); month = parent.state.month
+    human = parent.branch(month, f"human-{month}-{suffix}")
+    ai = parent.branch(month, f"ai-{month}-{suffix}")
+    create_branch_record(user_id, parent, human, f"Human: {request.human_action}", month)
+    create_branch_record(user_id, parent, ai, f"AI: {ai_action}", month)
+    human_state, human_events = human.advance(request.human_action)
+    ai_state, ai_events = ai.advance(ai_action)
+    persist_advance(human, human_events); persist_advance(ai, ai_events)
+    return {"fork_month": month, "human_action": request.human_action, "ai_action": ai_action,
+            "human_branch": human_state.to_dict(), "ai_branch": ai_state.to_dict(), "ai_plan": plan}
 
 
 @app.get("/datasets")

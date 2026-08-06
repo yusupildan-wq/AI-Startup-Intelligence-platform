@@ -210,6 +210,11 @@ interface PlannedAction {
   survival_probability: number; cash_p10: number; cash_median: number; revenue_median: number; customers_median: number
 }
 
+interface HumanAiComparison {
+  fork_month: number; human_action: string; ai_action: string
+  human_branch: CivilizationWorld; ai_branch: CivilizationWorld; ai_plan: ModelBasedPlan
+}
+
 function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(
     (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
@@ -273,6 +278,9 @@ function App() {
   const [modelPlan, setModelPlan] = useState<ModelBasedPlan | null>(null)
   const [decisionLoading, setDecisionLoading] = useState('')
   const [riskAversion, setRiskAversion] = useState(0.65)
+  const [humanAi, setHumanAi] = useState<HumanAiComparison | null>(null)
+  const [replayMonth, setReplayMonth] = useState(0)
+  const [replayState, setReplayState] = useState<CivilizationWorld | null>(null)
 
   useEffect(() => {
     fetch(`${API_URL}/model-metrics`)
@@ -588,7 +596,7 @@ function App() {
     if (!world) return
     const response = await fetch(`${API_URL}/worlds/${world.id}/branches/${branchId}`, { headers: { Authorization: `Bearer ${token}` } })
     if (response.ok) {
-      const selected = await response.json(); setWorld(selected)
+      const selected = await response.json(); setWorld(selected); setReplayState(null); setHumanAi(null)
       await refreshWorldNavigation(selected.id, selected.branch_id)
     }
   }
@@ -684,6 +692,28 @@ function App() {
       await refreshWorldNavigation(result.state.id, result.state.branch_id)
     } catch (error) { setWorldError(error instanceof Error ? error.message : 'Plan execution failed') }
     finally { setWorldLoading(false) }
+  }
+
+  async function compareHumanWithAi() {
+    if (!world) return
+    setDecisionLoading('compare'); setWorldError('')
+    try {
+      const response = await fetch(`${API_URL}/worlds/${world.id}/branches/${world.branch_id}/compare-human-ai`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ human_action: worldAction, risk_aversion: riskAversion, seed: Date.now() % 2147483647 }),
+      })
+      if (!response.ok) throw new Error(`Human vs AI experiment failed (${response.status})`)
+      const result = await response.json(); setHumanAi(result)
+      await refreshWorldNavigation(world.id, world.branch_id)
+    } catch (error) { setWorldError(error instanceof Error ? error.message : 'Human vs AI experiment failed') }
+    finally { setDecisionLoading('') }
+  }
+
+  async function inspectReplayMonth(month: number) {
+    if (!world) return
+    setReplayMonth(month)
+    const response = await fetch(`${API_URL}/worlds/${world.id}/branches/${world.branch_id}/replay/${month}`, { headers: { Authorization: `Bearer ${token}` } })
+    if (response.ok) setReplayState(await response.json())
   }
 
   const themeToggle = (
@@ -883,6 +913,7 @@ function App() {
                 <div className="decision-buttons">
                   <button className="btn btn-secondary" onClick={handleCausalAnalysis} disabled={!!decisionLoading}>{decisionLoading === 'causal' && <span className="spinner" />}Estimate Action Effects</button>
                   <button className="btn btn-primary" onClick={handleModelBasedPlan} disabled={!!decisionLoading}>{decisionLoading === 'planner' && <span className="spinner" />}Ask Model-Based CEO</button>
+                  <button className="btn btn-secondary" onClick={compareHumanWithAi} disabled={!!decisionLoading}>{decisionLoading === 'compare' && <span className="spinner" />}Fork My Choice vs AI</button>
                 </div>
               </div>
               <label className="risk-control"><span>CEO downside protection</span><input type="range" min="0" max="1" step="0.05" value={riskAversion} onChange={(e) => setRiskAversion(Number(e.target.value))} /><b>{Math.round(riskAversion * 100)}%</b></label>
@@ -914,10 +945,37 @@ function App() {
                   <p className="uncertainty-note">Searched {modelPlan.search.actions} actions over {modelPlan.search.horizon} months with beam width {modelPlan.search.beam_width_per_first_action}, then stress-tested each plan through {modelPlan.search.stochastic_paths_per_plan} generated futures. {modelPlan.limitations}</p>
                 </div>
               )}
+              {humanAi && (
+                <div className="human-ai-results">
+                  <div className="human-ai-column">
+                    <span>YOUR BRANCH</span><strong>{humanAi.human_action.replace(/_/g, ' ')}</strong>
+                    <b>${humanAi.human_branch.companies.player.cash.toLocaleString()} cash</b>
+                    <p>{humanAi.human_branch.companies.player.customers.toLocaleString()} customers · ${humanAi.human_branch.companies.player.revenue.toLocaleString()} revenue</p>
+                    <button className="btn btn-secondary" onClick={() => handleSwitchBranch(humanAi.human_branch.branch_id)}>Open your timeline</button>
+                  </div>
+                  <div className="comparison-vs">VS</div>
+                  <div className="human-ai-column ai-column">
+                    <span>MODEL-BASED AI BRANCH</span><strong>{humanAi.ai_action.replace(/_/g, ' ')}</strong>
+                    <b>${humanAi.ai_branch.companies.player.cash.toLocaleString()} cash</b>
+                    <p>{humanAi.ai_branch.companies.player.customers.toLocaleString()} customers · ${humanAi.ai_branch.companies.player.revenue.toLocaleString()} revenue</p>
+                    <button className="btn btn-primary" onClick={() => handleSwitchBranch(humanAi.ai_branch.branch_id)}>Open AI timeline</button>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="branch-tabs">
               {worldBranches.map((branch) => <button className={branch.id === world.branch_id ? 'active' : ''} onClick={() => handleSwitchBranch(branch.id)} key={branch.id}>{branch.name} · M{branch.current_month}</button>)}
             </div>
+            <div className="replay-control">
+              <div><strong>Timeline replay</strong><span>Inspect a saved month without changing history.</span></div>
+              <input type="range" min="0" max={world.month} value={replayState ? replayMonth : world.month} onChange={(e) => inspectReplayMonth(Number(e.target.value))} />
+              <b>M{replayState ? replayMonth : world.month}</b>
+              {replayState && <button className="btn btn-secondary" onClick={() => setReplayState(null)}>Return live</button>}
+            </div>
+            {replayState && <div className="replay-snapshot">
+              <span>REPLAY · READ ONLY</span><strong>{replayState.companies.player.name} at month {replayState.month}</strong>
+              <p>${replayState.companies.player.cash.toLocaleString()} cash · ${replayState.companies.player.revenue.toLocaleString()} revenue · {replayState.companies.player.customers.toLocaleString()} customers · {replayState.macro.regime} economy</p>
+            </div>}
             <details className="world-event-log">
               <summary>Event log ({worldEvents.length})</summary>
               {worldEvents.slice(-12).reverse().map((event) => <div key={event.id}><b>M{event.month}</b> {event.actor_id}: {event.type.replace(/_/g, ' ')}</div>)}
