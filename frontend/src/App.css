@@ -453,6 +453,7 @@
 .world-company > div { display: flex; justify-content: space-between; gap: 8px; }
 .world-company > div span { color: var(--success); font-size: 9px; font-weight: 700; }
 .world-company p { margin: 7px 0 0; color: var(--text-muted); font-size: 11px; }
+.world-company .population-flow { color: var(--accent); }
 .world-player { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent-glow); }
 .world-controls { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
 .branch-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }

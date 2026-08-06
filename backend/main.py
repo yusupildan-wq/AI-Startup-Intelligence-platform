@@ -15,6 +15,7 @@ from strategy_engine import analyze_strategies
 from state_store import get_latest_snapshot
 from ml.digital_twin import load_digital_twin, predict_digital_twin
 from ml.ai_ceo import load_ai_ceo, recommend_action, state_from_startup
+from ml.population_models import load_population_models
 from world import WorldEngine, create_world
 from world.events import ACTION_TYPES, SHOCK_TYPES
 from world.store import (
@@ -107,6 +108,7 @@ def model_metrics():
         "fundraising_model": _fundraising_model_metrics,
         "digital_twin": load_digital_twin()["metrics"],
         "ai_ceo": load_ai_ceo()["metrics"],
+        "population_models": load_population_models()["metrics"],
     }
 
 

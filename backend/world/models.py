@@ -19,6 +19,10 @@ class Company:
     founder_ownership: float = 0.9
     revenue: float = 0
     alive: bool = True
+    customers_acquired: int = 0
+    customers_churned: int = 0
+    employees_departed: int = 0
+    product_adoption_rate: float = 0
 
 
 @dataclass

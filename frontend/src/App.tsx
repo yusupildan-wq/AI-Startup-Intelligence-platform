@@ -73,6 +73,12 @@ interface ModelMetrics {
     policy: { survival_rate: number; median_company_value: number }
     random_baseline: { survival_rate: number; median_company_value: number }
   }
+  population_models: {
+    data_source: string; generated_rows_per_model: number
+    customer_choice: { roc_auc: number; balanced_accuracy: number; majority_baseline_accuracy: number }
+    employee_attrition: { roc_auc: number; balanced_accuracy: number; majority_baseline_accuracy: number }
+    product_adoption: { roc_auc: number; balanced_accuracy: number; majority_baseline_accuracy: number }
+  }
 }
 
 interface Strategy {
@@ -141,6 +147,7 @@ interface WorldCompany {
   id: string; name: string; cash: number; customers: number; price: number; marketing: number
   engineers: number; salespeople: number; support: number; product_quality: number
   technical_debt: number; reputation: number; founder_ownership: number; revenue: number; alive: boolean
+  customers_acquired: number; customers_churned: number; employees_departed: number; product_adoption_rate: number
 }
 
 interface CivilizationWorld {
@@ -566,6 +573,16 @@ function App() {
                 </div>
               </div>
               <div className="ml-system">
+                <div className="ml-system-head"><strong>Behavioral Population Models</strong><span>ACTIVE · 3 LEARNED SYSTEMS</span></div>
+                <p>Customers choose products, employees leave or stay, and segments adopt new product value.</p>
+                <div className="ml-facts">
+                  <span>{modelMetrics.population_models.generated_rows_per_model.toLocaleString()} examples / model</span>
+                  <span>Choice AUC {modelMetrics.population_models.customer_choice.roc_auc.toFixed(2)}</span>
+                  <span>Attrition AUC {modelMetrics.population_models.employee_attrition.roc_auc.toFixed(2)}</span>
+                  <span>Adoption AUC {modelMetrics.population_models.product_adoption.roc_auc.toFixed(2)}</span>
+                </div>
+              </div>
+              <div className="ml-system">
                 <div className="ml-system-head"><strong>AI CEO Policy</strong><span>ACTIVE · REINFORCEMENT LEARNING</span></div>
                 <p>Chooses and executes pricing, marketing, hiring, product, market, and funding actions.</p>
                 <div className="ml-facts">
@@ -621,6 +638,7 @@ function App() {
                   <div><strong>{company.name}</strong><span>{company.alive ? 'ACTIVE' : 'FAILED'}</span></div>
                   <p>${company.revenue.toLocaleString()} revenue · ${company.cash.toLocaleString()} cash</p>
                   <p>{company.customers} customers · ${company.price.toFixed(0)} price · {(company.product_quality * 100).toFixed(0)}% quality</p>
+                  <p className="population-flow">+{company.customers_acquired} acquired · −{company.customers_churned} churned · {company.employees_departed} staff left · {(company.product_adoption_rate * 100).toFixed(0)}% adoption</p>
                 </div>
               ))}
             </div>

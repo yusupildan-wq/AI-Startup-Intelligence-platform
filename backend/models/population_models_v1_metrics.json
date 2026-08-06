@@ -1,0 +1,31 @@
+{
+  "data_source": "synthetic_behavioral_population_v1",
+  "generated_rows_per_model": 40000,
+  "customer_choice": {
+    "training_rows": 31200,
+    "test_rows": 8800,
+    "accuracy": 0.9365,
+    "balanced_accuracy": 0.9295,
+    "roc_auc": 0.9841,
+    "majority_baseline_accuracy": 0.6295,
+    "positive_rate": 0.6295
+  },
+  "employee_attrition": {
+    "training_rows": 31200,
+    "test_rows": 8800,
+    "accuracy": 0.9469,
+    "balanced_accuracy": 0.5642,
+    "roc_auc": 0.7528,
+    "majority_baseline_accuracy": 0.965,
+    "positive_rate": 0.035
+  },
+  "product_adoption": {
+    "training_rows": 31200,
+    "test_rows": 8800,
+    "accuracy": 0.6355,
+    "balanced_accuracy": 0.6234,
+    "roc_auc": 0.681,
+    "majority_baseline_accuracy": 0.5525,
+    "positive_rate": 0.4475
+  }
+}

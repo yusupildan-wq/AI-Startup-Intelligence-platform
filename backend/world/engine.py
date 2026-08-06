@@ -5,6 +5,10 @@ from uuid import uuid4
 
 import numpy as np
 
+from ml.population_models import (
+    customer_purchase_probability, employee_departure_probability,
+    product_adoption_probability,
+)
 from world.events import ACTION_TYPES, SHOCK_TYPES, WorldEvent
 from world.models import Company, MacroEconomy, WorldState
 
@@ -101,22 +105,58 @@ class WorldEngine:
         relative_quality = company.product_quality - np.mean([item.product_quality for item in competitors])
         relative_price = company.price / max(np.mean([item.price for item in competitors]), 1)
         addressable = sum(segment.population * (1 + segment.growth_rate) ** month for segment in self.state.segments.values())
-        appeal = np.clip(0.18 + 0.5 * company.product_quality + 0.22 * company.reputation + 0.08 * relative_quality - 0.16 * max(0, relative_price - 1), 0.02, 0.95)
-        acquired = int(rng.poisson(max(1, np.sqrt(company.marketing) * appeal * macro.demand_multiplier + company.salespeople * 4)))
+        competitor_utility = float(np.mean([
+            item.product_quality + item.reputation - item.price / 300 for item in competitors
+        ]))
+        acquired = 0
+        adoption_rates = []
+        for segment in self.state.segments.values():
+            purchase_probability = customer_purchase_probability(
+                segment, company, competitor_utility, macro.demand_multiplier
+            )
+            reachable = min(round(segment.population * 0.015),
+                            round(np.sqrt(company.marketing) * (0.35 + company.salespeople * 0.08)))
+            acquired += int(rng.binomial(max(0, reachable), np.clip(purchase_probability, 0, 1)))
+            adoption_rates.append(product_adoption_probability(
+                segment.quality_preference, company.product_quality, 1 - company.technical_debt,
+                company.reputation, segment.switching_cost, relative_price - 1,
+                min(1, company.customers / max(segment.population, 1)),
+            ))
         churn_rate = np.clip(0.11 - company.product_quality * 0.065 - company.support * 0.004 + max(0, relative_price - 1) * 0.04, 0.006, 0.25)
         churned = int(rng.binomial(company.customers, churn_rate))
         customers = min(round(addressable), max(0, company.customers + acquired - churned))
         revenue = customers * company.price
-        payroll = (company.engineers + company.salespeople + company.support) * 7_000
+        previous_revenue = company.revenue
+        revenue_growth = (revenue - previous_revenue) / max(previous_revenue, 1) if previous_revenue else 0
+        current_headcount = company.engineers + company.salespeople + company.support
+        monthly_burn = current_headcount * 7_000 + company.marketing + 1_500 - revenue
+        runway = company.cash / max(monthly_burn, 1) if monthly_burn > 0 else 36
+        departure_probability = employee_departure_probability(
+            1.0, np.clip((company.reputation + company.product_quality) / 2, 0, 1),
+            company.technical_debt, month, revenue_growth, min(36, runway),
+            np.clip(1 - company.technical_debt, 0, 1), np.clip(1 - macro.unemployment_rate * 5, 0, 1),
+        )
+        engineer_departures = int(rng.binomial(company.engineers, departure_probability))
+        sales_departures = int(rng.binomial(company.salespeople, departure_probability))
+        support_departures = int(rng.binomial(company.support, departure_probability))
+        engineers = max(0, company.engineers - engineer_departures)
+        salespeople = max(0, company.salespeople - sales_departures)
+        support = max(0, company.support - support_departures)
+        payroll = (engineers + salespeople + support) * 7_000
         costs = payroll + company.marketing + 1_500 + revenue * 0.12
         cash = company.cash + revenue - costs
-        quality = np.clip(company.product_quality + 0.004 * np.log1p(company.engineers) - 0.01 * company.technical_debt, 0.05, 1)
-        debt = np.clip(company.technical_debt + 0.012 - 0.003 * company.engineers, 0, 1)
-        reputation = np.clip(company.reputation + (acquired - churned) / max(customers, 1) * 0.025, 0.05, 1)
+        adoption_rate = float(np.mean(adoption_rates))
+        quality = np.clip(company.product_quality + 0.004 * np.log1p(engineers) - 0.01 * company.technical_debt, 0.05, 1)
+        debt = np.clip(company.technical_debt + 0.012 - 0.003 * engineers, 0, 1)
+        reputation = np.clip(company.reputation + (acquired - churned) / max(customers, 1) * 0.025 + (adoption_rate - .5) * .01, 0.05, 1)
         return WorldEvent(month, "company_month_resolved", company.id, {
             "cash": float(cash), "customers": customers, "revenue": float(revenue),
             "product_quality": float(quality), "technical_debt": float(debt),
             "reputation": float(reputation), "alive": bool(cash > 0 and customers > 0),
+            "engineers": engineers, "salespeople": salespeople, "support": support,
+            "customers_acquired": acquired, "customers_churned": churned,
+            "employees_departed": engineer_departures + sales_departures + support_departures,
+            "product_adoption_rate": adoption_rate,
         })
 
     def _competitor_action(self, company, rng):
