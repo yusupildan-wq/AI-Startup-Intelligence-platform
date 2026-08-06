@@ -1,121 +1,104 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, type SubmitEvent } from 'react'
+
+interface SimulationResult {
+  revenue: number
+  monthly_costs: number
+  burn_rate: number
+  cash_on_hand: number
+  runway_months: number
+  growth_rate: number
+  customer_count: number
+  employee_count: number
+  marketing_spend: number
+  narration: string
+}
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [name, setName] = useState('')
+  const [businessType, setBusinessType] = useState('')
+  const [initialPrice, setInitialPrice] = useState('')
+  const [founderCount, setFounderCount] = useState('')
+  const [initialFunding, setInitialFunding] = useState('')
+  const [initialCustomerCount, setInitialCustomerCount] = useState('')
+  const [createdStartupId, setCreatedStartupId] = useState<number | null>(null)
+
+  const [simMarketingSpend, setSimMarketingSpend] = useState('')
+  const [simEmployeeCount, setSimEmployeeCount] = useState('')
+  const [simResult, setSimResult] = useState<SimulationResult | null>(null)
+
+  async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
+    e.preventDefault()
+
+    const response = await fetch('http://127.0.0.1:8000/startups', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        business_type: businessType,
+        initial_price: Number(initialPrice),
+        founder_count: Number(founderCount),
+        initial_funding: Number(initialFunding),
+        initial_customer_count: Number(initialCustomerCount),
+      }),
+    })
+
+    const data = await response.json()
+    setCreatedStartupId(data.startup_id)
+  }
+
+  async function handleSimulate(e: SubmitEvent<HTMLFormElement>) {
+    e.preventDefault()
+
+    const response = await fetch(
+      `http://127.0.0.1:8000/startups/${createdStartupId}/simulate-next-month`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          marketing_spend: Number(simMarketingSpend),
+          employee_count: Number(simEmployeeCount),
+        }),
+      }
+    )
+
+    const data = await response.json()
+    setSimResult(data)
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
+    <div>
+      <h1>AI Startup Intelligence Platform</h1>
+      <form onSubmit={handleSubmit}>
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Startup name" />
+        <input type="text" value={businessType} onChange={(e) => setBusinessType(e.target.value)} placeholder="Business type" />
+        <input type="number" value={initialPrice} onChange={(e) => setInitialPrice(e.target.value)} placeholder="Initial price" />
+        <input type="number" value={founderCount} onChange={(e) => setFounderCount(e.target.value)} placeholder="Founder count" />
+        <input type="number" value={initialFunding} onChange={(e) => setInitialFunding(e.target.value)} placeholder="Initial funding" />
+        <input type="number" value={initialCustomerCount} onChange={(e) => setInitialCustomerCount(e.target.value)} placeholder="Initial customer count" />
+        <button type="submit">Create Startup</button>
+      </form>
+      {createdStartupId && <p>Created startup with id {createdStartupId}</p>}
+
+      {createdStartupId && (
         <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+          <h2>Simulate Next Month</h2>
+          <form onSubmit={handleSimulate}>
+            <input type="number" value={simMarketingSpend} onChange={(e) => setSimMarketingSpend(e.target.value)} placeholder="Marketing spend" />
+            <input type="number" value={simEmployeeCount} onChange={(e) => setSimEmployeeCount(e.target.value)} placeholder="Employee count" />
+            <button type="submit">Simulate Next Month</button>
+          </form>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
+          {simResult && (
+            <div>
+              <p>Revenue: {simResult.revenue}</p>
+              <p>Cash on hand: {simResult.cash_on_hand}</p>
+              <p>Customers: {simResult.customer_count}</p>
+              <p>{simResult.narration}</p>
+            </div>
+          )}
         </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+      )}
+    </div>
   )
 }
 
