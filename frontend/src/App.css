@@ -583,6 +583,7 @@
 .ceo-benchmark span { color: var(--text-muted); font-size: 11px; margin-top: 3px; }
 .ceo-actions { display: flex; flex-wrap: wrap; gap: 7px; }
 .ceo-actions span { color: var(--text-muted); border: 1px solid var(--border-soft); border-radius: 999px; padding: 6px 10px; font-size: 11px; }
+.model-benchmark-note { color: var(--text-muted); font-size: 11px; margin: 10px 0 0; }
 
 @media (max-width: 640px) {
   .section-heading { flex-direction: column; }

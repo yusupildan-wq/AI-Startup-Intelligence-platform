@@ -125,6 +125,7 @@ interface AICeoResult {
     random_baseline: { survival_rate: number; median_company_value: number }
   }
   limitations: string
+  current_state: { month: number; cash: number; customers: number; price: number; marketing: number; employees: number }
 }
 
 function App() {
@@ -569,10 +570,18 @@ function App() {
               </div>
               {executedDecision && <div className="execution-success">Executed {executedDecision}. The startup state and history have been updated.</div>}
               <div className="ceo-benchmark">
-                <div><strong>{(aiCeo.policy.policy.survival_rate * 100).toFixed(1)}%</strong><span>AI survival</span></div>
-                <div><strong>{(aiCeo.policy.random_baseline.survival_rate * 100).toFixed(1)}%</strong><span>Random baseline</span></div>
-                <div><strong>{aiCeo.policy.training_transitions.toLocaleString()}</strong><span>Training decisions</span></div>
+                <div><strong>Month {aiCeo.current_state.month}</strong><span>Current month</span></div>
+                <div><strong>${aiCeo.current_state.cash.toLocaleString()}</strong><span>Current cash</span></div>
+                <div><strong>{aiCeo.current_state.customers.toLocaleString()}</strong><span>Current customers</span></div>
+                <div><strong>${aiCeo.current_state.price.toLocaleString()}</strong><span>Current price</span></div>
+                <div><strong>${aiCeo.current_state.marketing.toLocaleString()}</strong><span>Marketing / month</span></div>
+                <div><strong>{aiCeo.current_state.employees}</strong><span>Current employees</span></div>
               </div>
+              <p className="model-benchmark-note">
+                Fixed model benchmark: {(aiCeo.policy.policy.survival_rate * 100).toFixed(1)}% policy survival vs{' '}
+                {(aiCeo.policy.random_baseline.survival_rate * 100).toFixed(1)}% random across{' '}
+                {aiCeo.policy.training_transitions.toLocaleString()} training decisions.
+              </p>
               <p className="chart-title">Projected AI-controlled trajectory</p>
               <ResponsiveContainer width="100%" height={210}>
                 <LineChart data={aiCeo.projected_trajectory}>

@@ -183,7 +183,13 @@ def ai_ceo_decision(startup_id: int, user_id: int = Depends(verify_token)):
     startup = get_owned_startup_or_403(startup_id, user_id)
     latest = get_latest_snapshot(startup_id)
     state = state_from_startup(startup, latest)
-    return recommend_action(state)
+    result = recommend_action(state)
+    result["current_state"] = {
+        "month": state.month, "cash": round(state.cash, 2), "customers": round(state.customers),
+        "price": round(state.price, 2), "marketing": round(state.marketing, 2),
+        "employees": round(state.engineers + state.salespeople + state.support),
+    }
+    return result
 
 
 @app.post("/startups/{startup_id}/ai-ceo/execute")
