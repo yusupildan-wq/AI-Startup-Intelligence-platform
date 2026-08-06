@@ -137,6 +137,23 @@ interface AICeoResult {
   current_state: { month: number; cash: number; customers: number; price: number; marketing: number; employees: number }
 }
 
+interface WorldCompany {
+  id: string; name: string; cash: number; customers: number; price: number; marketing: number
+  engineers: number; salespeople: number; support: number; product_quality: number
+  technical_debt: number; reputation: number; founder_ownership: number; revenue: number; alive: boolean
+}
+
+interface CivilizationWorld {
+  id: string; name: string; seed: number; month: number; branch_id: string; parent_branch_id: string | null
+  companies: Record<string, WorldCompany>
+  segments: Record<string, { id: string; name: string; population: number; budget: number }>
+  investors: { available_capital: number; risk_appetite: number; valuation_multiple: number }
+  macro: { regime: string; demand_multiplier: number; interest_rate: number; unemployment_rate: number; venture_sentiment: number }
+}
+
+interface WorldEvent { id: string; month: number; type: string; actor_id: string; payload: Record<string, unknown> }
+interface WorldBranch { id: string; parent_branch_id: string | null; fork_month: number; name: string; current_month: number }
+
 function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(
     (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
@@ -168,6 +185,13 @@ function App() {
   const [loadingHistory, setLoadingHistory] = useState(false)
 
   const [modelMetrics, setModelMetrics] = useState<ModelMetrics | null>(null)
+  const [world, setWorld] = useState<CivilizationWorld | null>(null)
+  const [worldEvents, setWorldEvents] = useState<WorldEvent[]>([])
+  const [worldBranches, setWorldBranches] = useState<WorldBranch[]>([])
+  const [worldAction, setWorldAction] = useState('hold')
+  const [worldShock, setWorldShock] = useState('')
+  const [worldLoading, setWorldLoading] = useState(false)
+  const [worldError, setWorldError] = useState('')
   const [strategyResult, setStrategyResult] = useState<StrategyLabResult | null>(null)
   const [analyzingStrategies, setAnalyzingStrategies] = useState(false)
   const [strategyError, setStrategyError] = useState('')
@@ -421,6 +445,73 @@ function App() {
     }
   }
 
+  async function refreshWorldNavigation(worldId: string, branchId: string) {
+    const headers = { Authorization: `Bearer ${token}` }
+    const [eventsResponse, branchesResponse] = await Promise.all([
+      fetch(`${API_URL}/worlds/${worldId}/branches/${branchId}/events`, { headers }),
+      fetch(`${API_URL}/worlds/${worldId}/branches`, { headers }),
+    ])
+    if (eventsResponse.ok) setWorldEvents(await eventsResponse.json())
+    if (branchesResponse.ok) setWorldBranches(await branchesResponse.json())
+  }
+
+  async function handleCreateWorld() {
+    setWorldLoading(true); setWorldError('')
+    try {
+      const response = await fetch(`${API_URL}/worlds`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: name || 'Startup Civilization', seed: Date.now() % 2147483647, startup_id: createdStartupId }),
+      })
+      if (!response.ok) throw new Error(`World creation failed (${response.status})`)
+      const created = await response.json()
+      setWorld(created); setWorldEvents([])
+      await refreshWorldNavigation(created.id, created.branch_id)
+    } catch (error) { setWorldError(error instanceof Error ? error.message : 'World creation failed') }
+    finally { setWorldLoading(false) }
+  }
+
+  async function handleAdvanceWorld() {
+    if (!world) return
+    setWorldLoading(true); setWorldError('')
+    try {
+      const response = await fetch(`${API_URL}/worlds/${world.id}/branches/${world.branch_id}/advance`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: worldAction, shock: worldShock || null }),
+      })
+      if (!response.ok) throw new Error(`World advance failed (${response.status})`)
+      const result = await response.json()
+      setWorld(result.state); setWorldShock('')
+      await refreshWorldNavigation(result.state.id, result.state.branch_id)
+    } catch (error) { setWorldError(error instanceof Error ? error.message : 'World advance failed') }
+    finally { setWorldLoading(false) }
+  }
+
+  async function handleBranchWorld() {
+    if (!world) return
+    setWorldLoading(true); setWorldError('')
+    const branchName = `branch-month-${world.month}-${worldBranches.length + 1}`
+    try {
+      const response = await fetch(`${API_URL}/worlds/${world.id}/branches/${world.branch_id}/branch`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ from_month: world.month, name: branchName }),
+      })
+      if (!response.ok) throw new Error(`Timeline fork failed (${response.status})`)
+      const created = await response.json()
+      setWorld(created); setWorldEvents([])
+      await refreshWorldNavigation(created.id, created.branch_id)
+    } catch (error) { setWorldError(error instanceof Error ? error.message : 'Timeline fork failed') }
+    finally { setWorldLoading(false) }
+  }
+
+  async function handleSwitchBranch(branchId: string) {
+    if (!world) return
+    const response = await fetch(`${API_URL}/worlds/${world.id}/branches/${branchId}`, { headers: { Authorization: `Bearer ${token}` } })
+    if (response.ok) {
+      const selected = await response.json(); setWorld(selected)
+      await refreshWorldNavigation(selected.id, selected.branch_id)
+    }
+  }
+
   const themeToggle = (
     <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
       {theme === 'dark' ? '☀ Light' : '☾ Dark'}
@@ -506,6 +597,52 @@ function App() {
           {themeToggle}
           <button className="theme-toggle" onClick={handleLogout}>Log Out</button>
         </div>
+      </div>
+
+      <div className="card civilization-card">
+        <div className="section-heading">
+          <div>
+            <h2>Startup Civilization</h2>
+            <p className="card-sub">Operate one company inside a persistent world of competitors, customers, investors, and economic regimes.</p>
+          </div>
+          {!world && <button className="btn btn-primary world-launch" onClick={handleCreateWorld} disabled={worldLoading}>{worldLoading && <span className="spinner" />}Launch World</button>}
+        </div>
+        {worldError && <p className="error-text">{worldError}</p>}
+        {world && (
+          <div className="world-control-room">
+            <div className="world-status">
+              <span>Month <b>{world.month}</b></span><span>Branch <b>{world.branch_id}</b></span>
+              <span>Economy <b>{world.macro.regime}</b></span><span>Demand <b>{world.macro.demand_multiplier.toFixed(2)}×</b></span>
+              <span>Investor capital <b>${(world.investors.available_capital / 1e6).toFixed(1)}M</b></span>
+            </div>
+            <div className="world-companies">
+              {Object.values(world.companies).map((company) => (
+                <div className={`world-company ${company.id === 'player' ? 'world-player' : ''}`} key={company.id}>
+                  <div><strong>{company.name}</strong><span>{company.alive ? 'ACTIVE' : 'FAILED'}</span></div>
+                  <p>${company.revenue.toLocaleString()} revenue · ${company.cash.toLocaleString()} cash</p>
+                  <p>{company.customers} customers · ${company.price.toFixed(0)} price · {(company.product_quality * 100).toFixed(0)}% quality</p>
+                </div>
+              ))}
+            </div>
+            <div className="world-controls">
+              <select className="field" value={worldAction} onChange={(e) => setWorldAction(e.target.value)}>
+                {['hold','raise_price','lower_price','increase_marketing','decrease_marketing','hire_engineer','hire_sales','hire_support','reduce_headcount','fundraise','invest_in_product','enter_new_market'].map((action) => <option key={action} value={action}>{action.replace(/_/g, ' ')}</option>)}
+              </select>
+              <select className="field" value={worldShock} onChange={(e) => setWorldShock(e.target.value)}>
+                <option value="">No forced shock</option><option value="recession">Recession</option><option value="funding_boom">Funding boom</option><option value="demand_surge">Demand surge</option><option value="technology_shift">Technology shift</option>
+              </select>
+              <button className="btn btn-primary" onClick={handleAdvanceWorld} disabled={worldLoading}>{worldLoading && <span className="spinner" />}Advance Month</button>
+              <button className="btn btn-secondary" onClick={handleBranchWorld} disabled={worldLoading}>Fork Timeline</button>
+            </div>
+            <div className="branch-tabs">
+              {worldBranches.map((branch) => <button className={branch.id === world.branch_id ? 'active' : ''} onClick={() => handleSwitchBranch(branch.id)} key={branch.id}>{branch.name} · M{branch.current_month}</button>)}
+            </div>
+            <details className="world-event-log">
+              <summary>Event log ({worldEvents.length})</summary>
+              {worldEvents.slice(-12).reverse().map((event) => <div key={event.id}><b>M{event.month}</b> {event.actor_id}: {event.type.replace(/_/g, ' ')}</div>)}
+            </details>
+          </div>
+        )}
       </div>
 
       <div className="card">

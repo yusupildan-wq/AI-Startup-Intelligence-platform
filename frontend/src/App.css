@@ -443,6 +443,25 @@
 .legacy-models { margin-top: 12px; color: var(--text-muted); font-size: 11px; }
 .legacy-models summary { cursor: pointer; }
 
+.world-launch { width: auto; white-space: nowrap; }
+.world-control-room { margin-top: 20px; }
+.world-status { display: flex; flex-wrap: wrap; gap: 8px; }
+.world-status span { padding: 7px 10px; border: 1px solid var(--border-soft); border-radius: 999px; color: var(--text-muted); font-size: 11px; }
+.world-status b { color: var(--text); }
+.world-companies { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+.world-company { padding: 14px; border: 1px solid var(--border-soft); border-radius: 11px; background: var(--bg); }
+.world-company > div { display: flex; justify-content: space-between; gap: 8px; }
+.world-company > div span { color: var(--success); font-size: 9px; font-weight: 700; }
+.world-company p { margin: 7px 0 0; color: var(--text-muted); font-size: 11px; }
+.world-player { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent-glow); }
+.world-controls { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+.branch-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.branch-tabs button { border: 1px solid var(--border-soft); background: transparent; color: var(--text-muted); border-radius: 999px; padding: 6px 10px; font-size: 10px; }
+.branch-tabs button.active { color: var(--accent); border-color: var(--accent); }
+.world-event-log { margin-top: 13px; color: var(--text-muted); font-size: 11px; }
+.world-event-log summary { cursor: pointer; margin-bottom: 8px; }
+.world-event-log div { padding: 5px 0; border-bottom: 1px solid var(--border-soft); }
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -604,4 +623,5 @@
   .strategy-grid { grid-template-columns: 1fr; }
   .twin-stats { grid-template-columns: 1fr; }
   .ceo-benchmark { grid-template-columns: 1fr; }
+  .world-companies, .world-controls { grid-template-columns: 1fr; }
 }

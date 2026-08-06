@@ -81,3 +81,13 @@ def create_world(name="Startup Civilization", seed=2026):
         id=str(uuid4()), name=name, seed=seed,
         companies={focal.id: focal, **competitors}, segments=segments,
     )
+
+
+def world_from_dict(data):
+    return WorldState(
+        id=data["id"], name=data["name"], seed=data["seed"], month=data.get("month", 0),
+        branch_id=data.get("branch_id", "main"), parent_branch_id=data.get("parent_branch_id"),
+        companies={key: Company(**value) for key, value in data["companies"].items()},
+        segments={key: CustomerSegment(**value) for key, value in data["segments"].items()},
+        investors=InvestorMarket(**data["investors"]), macro=MacroEconomy(**data["macro"]),
+    )

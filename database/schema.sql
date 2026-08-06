@@ -33,3 +33,46 @@ CREATE TABLE monthly_snapshots (
     marketing_spend NUMERIC(12,2) NOT NULL,
     UNIQUE (startup_id, month_number)
 );
+
+CREATE TABLE simulation_worlds (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    name TEXT NOT NULL,
+    seed INTEGER NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
+CREATE TABLE world_branches (
+    id TEXT NOT NULL,
+    world_id TEXT NOT NULL REFERENCES simulation_worlds(id) ON DELETE CASCADE,
+    parent_branch_id TEXT,
+    fork_month INTEGER NOT NULL DEFAULT 0,
+    name TEXT NOT NULL,
+    initial_state JSONB NOT NULL,
+    current_state JSONB NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    PRIMARY KEY (world_id, id)
+);
+
+CREATE TABLE world_events (
+    sequence BIGSERIAL PRIMARY KEY,
+    id TEXT NOT NULL UNIQUE,
+    world_id TEXT NOT NULL,
+    branch_id TEXT NOT NULL,
+    month INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    actor_id TEXT NOT NULL,
+    payload JSONB NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    FOREIGN KEY (world_id, branch_id) REFERENCES world_branches(world_id, id) ON DELETE CASCADE
+);
+
+CREATE TABLE world_snapshots (
+    world_id TEXT NOT NULL,
+    branch_id TEXT NOT NULL,
+    month INTEGER NOT NULL,
+    state JSONB NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT now(),
+    PRIMARY KEY (world_id, branch_id, month),
+    FOREIGN KEY (world_id, branch_id) REFERENCES world_branches(world_id, id) ON DELETE CASCADE
+);

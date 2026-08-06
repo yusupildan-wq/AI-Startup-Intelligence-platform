@@ -15,6 +15,12 @@ from strategy_engine import analyze_strategies
 from state_store import get_latest_snapshot
 from ml.digital_twin import load_digital_twin, predict_digital_twin
 from ml.ai_ceo import load_ai_ceo, recommend_action, state_from_startup
+from world import WorldEngine, create_world
+from world.events import ACTION_TYPES, SHOCK_TYPES
+from world.store import (
+    assert_world_owner, create_branch_record, create_world_record, ensure_world_tables,
+    list_branches, list_events, list_worlds, load_engine, persist_advance,
+)
 
 app = FastAPI()
 
@@ -60,6 +66,32 @@ class SimulateMonthRequest(BaseModel):
 class StrategyLabRequest(BaseModel):
     horizon_months: int = 12
     simulations: int = 250
+
+
+class CreateWorldRequest(BaseModel):
+    name: str = "Startup Civilization"
+    seed: int = 2026
+    startup_id: int | None = None
+
+
+class AdvanceWorldRequest(BaseModel):
+    action: str = "hold"
+    shock: str | None = None
+
+
+class BranchWorldRequest(BaseModel):
+    from_month: int
+    name: str
+
+
+_world_storage_ready = False
+
+
+def ensure_world_storage():
+    global _world_storage_ready
+    if not _world_storage_ready:
+        ensure_world_tables()
+        _world_storage_ready = True
 
 
 @app.get("/health")
@@ -250,3 +282,86 @@ def strategy_lab(startup_id: int, request: StrategyLabRequest, user_id: int = De
         horizon_months=request.horizon_months,
         simulations=request.simulations,
     )
+
+
+@app.get("/worlds")
+def get_worlds(user_id: int = Depends(verify_token)):
+    ensure_world_storage()
+    return list_worlds(user_id)
+
+
+@app.post("/worlds")
+def create_simulation_world(request: CreateWorldRequest, user_id: int = Depends(verify_token)):
+    ensure_world_storage()
+    world = create_world(request.name, request.seed)
+    if request.startup_id is not None:
+        startup = get_owned_startup_or_403(request.startup_id, user_id)
+        latest = get_latest_snapshot(request.startup_id)
+        player = world.companies["player"]
+        player.name = startup["name"]
+        player.cash = float(latest["cash_on_hand"] if latest else startup["initial_funding"])
+        player.customers = int(latest["customer_count"] if latest else startup["initial_customer_count"])
+        player.price = float(latest["price_per_customer"] if latest else startup["initial_price"])
+        if latest:
+            player.marketing = float(latest["marketing_spend"])
+            employees = int(latest["employee_count"])
+            player.engineers = max(1, round(employees * 0.5))
+            player.salespeople = max(0, round(employees * 0.25))
+            player.support = max(0, employees - player.engineers - player.salespeople)
+    engine = WorldEngine(world)
+    create_world_record(user_id, engine)
+    return engine.state.to_dict()
+
+
+def get_owned_world_engine(world_id, branch_id, user_id):
+    ensure_world_storage()
+    if not assert_world_owner(world_id, user_id):
+        raise HTTPException(status_code=404, detail="World not found")
+    engine = load_engine(world_id, branch_id)
+    if engine is None:
+        raise HTTPException(status_code=404, detail="Branch not found")
+    return engine
+
+
+@app.get("/worlds/{world_id}/branches")
+def get_world_branches(world_id: str, user_id: int = Depends(verify_token)):
+    ensure_world_storage()
+    if not assert_world_owner(world_id, user_id):
+        raise HTTPException(status_code=404, detail="World not found")
+    return list_branches(world_id)
+
+
+@app.get("/worlds/{world_id}/branches/{branch_id}")
+def inspect_world(world_id: str, branch_id: str, user_id: int = Depends(verify_token)):
+    return get_owned_world_engine(world_id, branch_id, user_id).state.to_dict()
+
+
+@app.post("/worlds/{world_id}/branches/{branch_id}/advance")
+def advance_world(world_id: str, branch_id: str, request: AdvanceWorldRequest,
+                  user_id: int = Depends(verify_token)):
+    if request.action not in ACTION_TYPES:
+        raise HTTPException(status_code=422, detail=f"Action must be one of: {sorted(ACTION_TYPES)}")
+    if request.shock is not None and request.shock not in SHOCK_TYPES:
+        raise HTTPException(status_code=422, detail=f"Shock must be one of: {sorted(SHOCK_TYPES)}")
+    engine = get_owned_world_engine(world_id, branch_id, user_id)
+    state, events = engine.advance(request.action, request.shock)
+    persist_advance(engine, events)
+    return {"state": state.to_dict(), "events": [event.to_dict() for event in events]}
+
+
+@app.post("/worlds/{world_id}/branches/{branch_id}/branch")
+def branch_world(world_id: str, branch_id: str, request: BranchWorldRequest,
+                 user_id: int = Depends(verify_token)):
+    engine = get_owned_world_engine(world_id, branch_id, user_id)
+    try:
+        branch = engine.branch(request.from_month, request.name)
+        create_branch_record(user_id, engine, branch, request.name, request.from_month)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return branch.state.to_dict()
+
+
+@app.get("/worlds/{world_id}/branches/{branch_id}/events")
+def get_world_events(world_id: str, branch_id: str, user_id: int = Depends(verify_token)):
+    get_owned_world_engine(world_id, branch_id, user_id)
+    return list_events(world_id, branch_id)
