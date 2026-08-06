@@ -27,6 +27,18 @@ interface Snapshot {
   customers_acquired: number
 }
 
+interface ChurnModelResult {
+  accuracy: number
+  precision: number
+  recall: number
+  feature_importance: Record<string, number>
+}
+
+interface ModelMetrics {
+  churn_model_comparison: Record<string, ChurnModelResult>
+  growth_model: { mae: number; r2: number }
+}
+
 function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(
     (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
@@ -54,6 +66,14 @@ function App() {
 
   const [history, setHistory] = useState<Snapshot[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
+
+  const [modelMetrics, setModelMetrics] = useState<ModelMetrics | null>(null)
+
+  useEffect(() => {
+    fetch('http://127.0.0.1:8000/model-metrics')
+      .then((res) => res.json())
+      .then(setModelMetrics)
+  }, [])
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -223,6 +243,37 @@ function App() {
           </button>
           {authError && <p className="error-text">{authError}</p>}
         </div>
+
+        {modelMetrics && (
+          <div className="card metrics-card">
+            <h2>🧠 Live Model Benchmarks</h2>
+            <p className="card-sub">Real churn models, trained and evaluated on every server start</p>
+            <table className="metrics-table">
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th>Accuracy</th>
+                  <th>Precision</th>
+                  <th>Recall</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(modelMetrics.churn_model_comparison).map(([name, result]) => (
+                  <tr key={name}>
+                    <td>{name.replace(/_/g, ' ')}</td>
+                    <td>{(result.accuracy * 100).toFixed(1)}%</td>
+                    <td>{(result.precision * 100).toFixed(1)}%</td>
+                    <td>{(result.recall * 100).toFixed(1)}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="card-sub metrics-footnote">
+              Growth model (linear regression): R² {modelMetrics.growth_model.r2.toFixed(2)}, MAE{' '}
+              {modelMetrics.growth_model.mae.toFixed(1)} customers
+            </p>
+          </div>
+        )}
       </div>
     )
   }

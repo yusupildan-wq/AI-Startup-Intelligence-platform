@@ -8,8 +8,12 @@ from pydantic import BaseModel
 from state_store import insert_startup, get_startup, get_all_snapshots, insert_user, get_user_by_email
 from orchestrator import run_month
 from auth import create_token, verify_token
+from prediction_engine import benchmark_churn_models, train_growth_model
 
 app = FastAPI()
+
+_churn_model_benchmark = benchmark_churn_models()
+_, _growth_model_metrics = train_growth_model()
 
 app.add_middleware(
     CORSMiddleware,
@@ -46,6 +50,14 @@ class SimulateMonthRequest(BaseModel):
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/model-metrics")
+def model_metrics():
+    return {
+        "churn_model_comparison": _churn_model_benchmark,
+        "growth_model": _growth_model_metrics,
+    }
 
 
 @app.post("/register")

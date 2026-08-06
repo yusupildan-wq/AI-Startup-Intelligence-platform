@@ -1,7 +1,9 @@
 import numpy as np
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, mean_absolute_error, precision_score, r2_score, recall_score
+from xgboost import XGBClassifier
 
 
 def generate_training_data(n=200, seed=42):
@@ -40,6 +42,40 @@ def train_churn_model():
 def predict_churn_probability(model, days_since_login, support_tickets, price):
     features = np.array([[days_since_login, support_tickets, price]])
     return model.predict_proba(features)[0][1]
+
+
+def benchmark_churn_models():
+    features, labels = generate_training_data()
+    X_train, X_test, y_train, y_test = train_test_split(
+        features, labels, test_size=0.2, random_state=42
+    )
+
+    candidates = {
+        "logistic_regression": LogisticRegression(),
+        "random_forest": RandomForestClassifier(n_estimators=100, random_state=42),
+        "xgboost": XGBClassifier(eval_metric="logloss", random_state=42),
+    }
+
+    feature_names = ["days_since_login", "support_tickets", "price"]
+    results = {}
+
+    for name, candidate in candidates.items():
+        candidate.fit(X_train, y_train)
+        predictions = candidate.predict(X_test)
+
+        if hasattr(candidate, "coef_"):
+            importance = dict(zip(feature_names, candidate.coef_[0].tolist()))
+        else:
+            importance = dict(zip(feature_names, candidate.feature_importances_.tolist()))
+
+        results[name] = {
+            "accuracy": accuracy_score(y_test, predictions),
+            "precision": precision_score(y_test, predictions, zero_division=0),
+            "recall": recall_score(y_test, predictions, zero_division=0),
+            "feature_importance": importance,
+        }
+
+    return results
 
 
 def generate_growth_training_data(n=200, seed=7):
