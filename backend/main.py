@@ -186,6 +186,22 @@ def ai_ceo_decision(startup_id: int, user_id: int = Depends(verify_token)):
     return recommend_action(state)
 
 
+@app.post("/startups/{startup_id}/ai-ceo/execute")
+def execute_ai_ceo_decision(startup_id: int, user_id: int = Depends(verify_token)):
+    startup = get_owned_startup_or_403(startup_id, user_id)
+    latest = get_latest_snapshot(startup_id)
+    decision = recommend_action(state_from_startup(startup, latest), rollout_months=1)["recommendation"]
+    marketing_spend = float(latest["marketing_spend"]) if latest else 1000.0
+    employee_count = int(latest["employee_count"]) if latest else max(1, startup["founder_count"])
+    simulation = run_month(
+        startup_id=startup_id,
+        marketing_spend=marketing_spend,
+        employee_count=employee_count,
+        ai_action=decision["action"],
+    )
+    return {"executed_decision": decision, "simulation": simulation}
+
+
 @app.post("/startups/{startup_id}/simulate-next-month")
 def simulate_next_month(startup_id: int, request: SimulateMonthRequest, user_id: int = Depends(verify_token)):
     get_owned_startup_or_403(startup_id, user_id)

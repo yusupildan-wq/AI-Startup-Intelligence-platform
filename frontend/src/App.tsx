@@ -167,6 +167,8 @@ function App() {
   const [aiCeo, setAiCeo] = useState<AICeoResult | null>(null)
   const [loadingCeo, setLoadingCeo] = useState(false)
   const [ceoError, setCeoError] = useState('')
+  const [executingCeo, setExecutingCeo] = useState(false)
+  const [executedDecision, setExecutedDecision] = useState('')
 
   useEffect(() => {
     fetch(`${API_URL}/model-metrics`)
@@ -384,6 +386,31 @@ function App() {
     }
   }
 
+  async function handleExecuteAiCeo() {
+    setExecutingCeo(true)
+    setCeoError('')
+    setExecutedDecision('')
+    try {
+      const response = await fetch(`${API_URL}/startups/${createdStartupId}/ai-ceo/execute`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!response.ok) {
+        const body = await response.json().catch(() => null)
+        throw new Error(body?.detail || `AI CEO execution failed (${response.status})`)
+      }
+      const data = await response.json()
+      setExecutedDecision(data.executed_decision.action_label)
+      setSimResult(data.simulation)
+      await handleViewHistory()
+      await handleAskAiCeo()
+    } catch (error) {
+      setCeoError(error instanceof Error ? error.message : 'AI CEO execution failed')
+    } finally {
+      setExecutingCeo(false)
+    }
+  }
+
   function buildFeatureImportanceData(comparison: Record<string, ChurnModelResult>) {
     const featureNames = Object.keys(Object.values(comparison)[0]?.feature_importance ?? {})
     return featureNames.map((feature) => {
@@ -535,7 +562,12 @@ function App() {
                 <span className="recommendation-label">Next decision</span>
                 <strong>{aiCeo.recommendation.action_label}</strong>
                 <p>{aiCeo.recommendation.explanation}</p>
+                <button className="btn btn-primary execute-ceo" onClick={handleExecuteAiCeo} disabled={executingCeo}>
+                  {executingCeo && <span className="spinner" />}
+                  Authorize AI CEO and advance one month
+                </button>
               </div>
+              {executedDecision && <div className="execution-success">Executed {executedDecision}. The startup state and history have been updated.</div>}
               <div className="ceo-benchmark">
                 <div><strong>{(aiCeo.policy.policy.survival_rate * 100).toFixed(1)}%</strong><span>AI survival</span></div>
                 <div><strong>{(aiCeo.policy.random_baseline.survival_rate * 100).toFixed(1)}%</strong><span>Random baseline</span></div>

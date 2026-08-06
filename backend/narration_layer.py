@@ -15,6 +15,10 @@ def generate_narration(snapshot):
         else:
             fundraising_line = "\nThe founder attempted to raise funding this month but was unsuccessful."
 
+    ai_action_line = ""
+    if snapshot.get("ai_action"):
+        ai_action_line = f"\nThe AI CEO executed this action: {snapshot['ai_action'].replace('_', ' ')}."
+
     prompt = f"""Write a short, 2-3 sentence summary of month {snapshot['month_number']} for a startup founder.
 Only describe the facts given below. Do not invent or estimate any numbers not listed here.
 
@@ -25,7 +29,7 @@ Customers churned this month: {snapshot['customers_churned']}
 Cash on hand: ${snapshot['cash_on_hand']}
 Marketing spend: ${snapshot['marketing_spend']}
 Employees: {snapshot['employee_count']}
-Overall market conditions this month: {snapshot['market_condition']}{fundraising_line}"""
+Overall market conditions this month: {snapshot['market_condition']}{fundraising_line}{ai_action_line}"""
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",

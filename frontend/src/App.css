@@ -575,6 +575,8 @@
 .ceo-decision { padding: 19px; border-radius: 12px; border: 1px solid var(--accent); background: var(--accent-glow); }
 .ceo-decision strong { display: block; margin: 5px 0; font-size: 22px; }
 .ceo-decision p { margin: 0; color: var(--text-muted); line-height: 1.5; font-size: 13px; }
+.execute-ceo { margin-top: 16px; }
+.execution-success { margin-top: 10px; padding: 11px 14px; border-radius: 9px; background: rgba(74, 222, 128, .12); color: var(--success); font-size: 13px; }
 .ceo-benchmark { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
 .ceo-benchmark div { display: flex; flex-direction: column; padding: 13px; border: 1px solid var(--border-soft); border-radius: 10px; }
 .ceo-benchmark strong { font-size: 18px; }
