@@ -445,3 +445,96 @@
   margin-top: 18px;
   animation: fade-up 0.3s var(--ease);
 }
+
+.section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.section-heading .card-sub {
+  margin: 6px 0 0;
+}
+
+.strategy-button {
+  width: auto;
+  white-space: nowrap;
+}
+
+.strategy-results {
+  margin-top: 22px;
+}
+
+.recommendation {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px;
+  border: 1px solid var(--accent);
+  background: var(--accent-glow);
+  border-radius: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.recommendation strong {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.recommendation-label {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.strategy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.strategy-option {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.strategy-option strong { color: var(--text); font-size: 15px; }
+.strategy-winner { border-color: var(--success); }
+.strategy-rank { color: var(--accent); font-weight: 700; }
+
+.survival-meter {
+  height: 5px;
+  overflow: hidden;
+  background: var(--border-soft);
+  border-radius: 999px;
+}
+
+.survival-meter i {
+  display: block;
+  height: 100%;
+  background: var(--success);
+  border-radius: inherit;
+}
+
+.uncertainty-note {
+  margin: 14px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .section-heading { flex-direction: column; }
+  .strategy-button { width: 100%; }
+  .strategy-grid { grid-template-columns: 1fr; }
+}

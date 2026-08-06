@@ -91,6 +91,22 @@ def run_month(
 
     next_month_number = previous["month_number"] + 1
 
+    narration_input = {
+        "month_number": next_month_number,
+        "revenue": computed["revenue"],
+        "customer_count": computed["customer_count"],
+        "customers_churned": customers_churned,
+        "customers_acquired": customers_acquired,
+        "cash_on_hand": computed["cash_on_hand"],
+        "marketing_spend": computed["marketing_spend"],
+        "employee_count": computed["employee_count"],
+        "market_condition": market_label,
+        "fundraising_result": fundraising_result,
+    }
+    narration = generate_narration(narration_input)
+
+    # Only commit the month after its required OpenAI narration succeeds. This
+    # keeps a failed request from advancing history invisibly behind the UI.
     insert_monthly_snapshot(
         startup_id=startup_id,
         month_number=next_month_number,
@@ -105,20 +121,6 @@ def run_month(
         price_per_customer=previous["price_per_customer"],
         marketing_spend=computed["marketing_spend"],
     )
-
-    narration_input = {
-        "month_number": next_month_number,
-        "revenue": computed["revenue"],
-        "customer_count": computed["customer_count"],
-        "customers_churned": customers_churned,
-        "customers_acquired": customers_acquired,
-        "cash_on_hand": computed["cash_on_hand"],
-        "marketing_spend": computed["marketing_spend"],
-        "employee_count": computed["employee_count"],
-        "market_condition": market_label,
-        "fundraising_result": fundraising_result,
-    }
-    narration = generate_narration(narration_input)
 
     if computed["runway_months"] == float("inf"):
         computed["runway_months"] = None

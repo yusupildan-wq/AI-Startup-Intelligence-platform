@@ -14,6 +14,8 @@ import {
 } from 'recharts'
 import './App.css'
 
+const API_URL = 'http://127.0.0.1:8001'
+
 interface FundraisingResult {
   attempted: boolean
   success_probability: number
@@ -64,6 +66,28 @@ interface ModelMetrics {
   fundraising_model: { accuracy: number; precision: number; recall: number }
 }
 
+interface Strategy {
+  rank: number
+  price: number
+  monthly_marketing: number
+  employee_count: number
+  survival_probability: number
+  ending_cash_p10: number
+  ending_cash_median: number
+  ending_cash_p90: number
+  ending_revenue_median: number
+  ending_customers_median: number
+}
+
+interface StrategyLabResult {
+  horizon_months: number
+  simulations_per_strategy: number
+  strategies_evaluated: number
+  recommendation: string
+  best_strategy: Strategy
+  top_strategies: Strategy[]
+}
+
 function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(
     (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
@@ -89,14 +113,18 @@ function App() {
   const [attemptFundraising, setAttemptFundraising] = useState(false)
   const [simResult, setSimResult] = useState<SimulationResult | null>(null)
   const [simulating, setSimulating] = useState(false)
+  const [simulationError, setSimulationError] = useState('')
 
   const [history, setHistory] = useState<Snapshot[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
 
   const [modelMetrics, setModelMetrics] = useState<ModelMetrics | null>(null)
+  const [strategyResult, setStrategyResult] = useState<StrategyLabResult | null>(null)
+  const [analyzingStrategies, setAnalyzingStrategies] = useState(false)
+  const [strategyError, setStrategyError] = useState('')
 
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/model-metrics')
+    fetch(`${API_URL}/model-metrics`)
       .then((res) => res.json())
       .then(setModelMetrics)
   }, [])
@@ -117,7 +145,7 @@ function App() {
   }, [])
 
   async function loginWithCredentials() {
-    const response = await fetch('http://127.0.0.1:8000/login', {
+    const response = await fetch(`${API_URL}/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -145,7 +173,7 @@ function App() {
     setAuthError('')
     setAuthLoading('register')
 
-    const response = await fetch('http://127.0.0.1:8000/register', {
+    const response = await fetch(`${API_URL}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -165,7 +193,7 @@ function App() {
     setAuthError('')
     setAuthLoading('guest')
 
-    const response = await fetch('http://127.0.0.1:8000/guest-login', { method: 'POST' })
+    const response = await fetch(`${API_URL}/guest-login`, { method: 'POST' })
     const data = await response.json()
     localStorage.setItem('token', data.access_token)
     setToken(data.access_token)
@@ -181,7 +209,7 @@ function App() {
     e.preventDefault()
     setCreatingStartup(true)
 
-    const response = await fetch('http://127.0.0.1:8000/startups', {
+    const response = await fetch(`${API_URL}/startups`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -205,36 +233,75 @@ function App() {
   async function handleSimulate(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
     setSimulating(true)
-
-    const response = await fetch(
-      `http://127.0.0.1:8000/startups/${createdStartupId}/simulate-next-month`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          marketing_spend: Number(simMarketingSpend),
-          employee_count: Number(simEmployeeCount),
-          attempt_fundraising: attemptFundraising,
-        }),
+    setSimulationError('')
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 15000)
+    try {
+      const response = await fetch(
+        `${API_URL}/startups/${createdStartupId}/simulate-next-month`,
+        {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            marketing_spend: Number(simMarketingSpend),
+            employee_count: Number(simEmployeeCount),
+            attempt_fundraising: attemptFundraising,
+          }),
+        }
+      )
+      if (!response.ok) {
+        const body = await response.json().catch(() => null)
+        throw new Error(body?.detail || `Simulation failed (${response.status})`)
       }
-    )
-
-    const data = await response.json()
-    setSimResult(data)
-    setSimulating(false)
+      setSimResult(await response.json())
+    } catch (error) {
+      setSimulationError(
+        error instanceof DOMException && error.name === 'AbortError'
+          ? 'Simulation timed out. Please try again.'
+          : error instanceof Error ? error.message : 'Simulation failed'
+      )
+    } finally {
+      window.clearTimeout(timeout)
+      setSimulating(false)
+    }
   }
 
   async function handleViewHistory() {
     setLoadingHistory(true)
-    const response = await fetch(`http://127.0.0.1:8000/startups/${createdStartupId}/snapshots`, {
+    const response = await fetch(`${API_URL}/startups/${createdStartupId}/snapshots`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     const data = await response.json()
     setHistory(data)
     setLoadingHistory(false)
+  }
+
+  async function handleAnalyzeStrategies() {
+    setAnalyzingStrategies(true)
+    setStrategyError('')
+    try {
+      const response = await fetch(`${API_URL}/startups/${createdStartupId}/strategy-lab`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ horizon_months: 12, simulations: 250 }),
+      })
+      if (!response.ok) {
+        const body = await response.json().catch(() => null)
+        throw new Error(body?.detail || `Strategy analysis failed (${response.status})`)
+      }
+      setStrategyResult(await response.json())
+    } catch (error) {
+      setStrategyError(error instanceof Error ? error.message : 'Could not reach the strategy engine')
+    } finally {
+      setAnalyzingStrategies(false)
+    }
   }
 
   function buildFeatureImportanceData(comparison: Record<string, ChurnModelResult>) {
@@ -326,7 +393,7 @@ function App() {
                 <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
                 <Tooltip
                   contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
-                  formatter={(v: number) => `${(v * 100).toFixed(1)}%`}
+                  formatter={(v) => `${(Number(v ?? 0) * 100).toFixed(1)}%`}
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="logistic_regression" fill="#6e7bff" radius={[4, 4, 0, 0]} />
@@ -370,6 +437,51 @@ function App() {
       </div>
 
       {createdStartupId && (
+        <div className="card strategy-card">
+          <div className="section-heading">
+            <div>
+              <h2>AI Strategy Lab</h2>
+              <p className="card-sub">Stress-test pricing, marketing, and hiring across thousands of possible futures.</p>
+            </div>
+            <button className="btn btn-secondary strategy-button" onClick={handleAnalyzeStrategies} disabled={analyzingStrategies}>
+              {analyzingStrategies && <span className="spinner" />}
+              Analyze 12-month strategy
+            </button>
+          </div>
+          {strategyError && <p className="error-text">{strategyError}. Restart the backend and try again.</p>}
+
+          {strategyResult && (
+            <div className="strategy-results">
+              <div className="recommendation">
+                <span className="recommendation-label">Recommended decision</span>
+                <strong>{strategyResult.recommendation}</strong>
+                <span>
+                  Tested {strategyResult.strategies_evaluated} strategies with{' '}
+                  {strategyResult.simulations_per_strategy.toLocaleString()} futures each.
+                </span>
+              </div>
+              <div className="strategy-grid">
+                {strategyResult.top_strategies.map((strategy) => (
+                  <div className={`strategy-option ${strategy.rank === 1 ? 'strategy-winner' : ''}`} key={strategy.rank}>
+                    <span className="strategy-rank">#{strategy.rank}</span>
+                    <strong>${strategy.price}/customer</strong>
+                    <span>${strategy.monthly_marketing.toLocaleString()} marketing · {strategy.employee_count} staff</span>
+                    <div className="survival-meter">
+                      <i style={{ width: `${strategy.survival_probability * 100}%` }} />
+                    </div>
+                    <span>{(strategy.survival_probability * 100).toFixed(0)}% survival · ${strategy.ending_cash_median.toLocaleString()} median cash</span>
+                  </div>
+                ))}
+              </div>
+              <p className="uncertainty-note">
+                Best-case / expected / stress-case ending cash: ${strategyResult.best_strategy.ending_cash_p90.toLocaleString()} / ${strategyResult.best_strategy.ending_cash_median.toLocaleString()} / ${strategyResult.best_strategy.ending_cash_p10.toLocaleString()}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {createdStartupId && (
         <div className="card">
           <h2>Simulate Next Month</h2>
           <form onSubmit={handleSimulate}>
@@ -385,6 +497,7 @@ function App() {
               {simulating && <span className="spinner" />}
               Simulate Next Month
             </button>
+            {simulationError && <p className="error-text">{simulationError}</p>}
           </form>
 
           {simResult && (

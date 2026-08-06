@@ -1,6 +1,7 @@
 import secrets
 
 import bcrypt
+import openai
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -9,16 +10,21 @@ from state_store import insert_startup, get_startup, get_all_snapshots, insert_u
 from orchestrator import run_month
 from auth import create_token, verify_token
 from prediction_engine import benchmark_churn_models, train_growth_model, train_fundraising_model
+from prediction_engine import train_churn_model
+from strategy_engine import analyze_strategies
+from state_store import get_latest_snapshot
 
 app = FastAPI()
 
 _churn_model_benchmark = benchmark_churn_models()
 _, _growth_model_metrics = train_growth_model()
 _, _fundraising_model_metrics = train_fundraising_model()
+_strategy_churn_model, _ = train_churn_model()
+_strategy_growth_model, _ = train_growth_model()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -47,6 +53,11 @@ class SimulateMonthRequest(BaseModel):
     marketing_spend: float
     employee_count: int
     attempt_fundraising: bool = False
+
+
+class StrategyLabRequest(BaseModel):
+    horizon_months: int = 12
+    simulations: int = 250
 
 
 @app.get("/health")
@@ -130,10 +141,40 @@ def list_snapshots(startup_id: int, user_id: int = Depends(verify_token)):
 @app.post("/startups/{startup_id}/simulate-next-month")
 def simulate_next_month(startup_id: int, request: SimulateMonthRequest, user_id: int = Depends(verify_token)):
     get_owned_startup_or_403(startup_id, user_id)
+    try:
+        return run_month(
+            startup_id=startup_id,
+            marketing_spend=request.marketing_spend,
+            employee_count=request.employee_count,
+            attempt_fundraising=request.attempt_fundraising,
+        )
+    except openai.OpenAIError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="OpenAI narration is temporarily unavailable. The simulation was not completed.",
+        ) from exc
 
-    return run_month(
-        startup_id=startup_id,
-        marketing_spend=request.marketing_spend,
-        employee_count=request.employee_count,
-        attempt_fundraising=request.attempt_fundraising,
+
+@app.post("/startups/{startup_id}/strategy-lab")
+def strategy_lab(startup_id: int, request: StrategyLabRequest, user_id: int = Depends(verify_token)):
+    startup = get_owned_startup_or_403(startup_id, user_id)
+    if not 3 <= request.horizon_months <= 36:
+        raise HTTPException(status_code=422, detail="Horizon must be between 3 and 36 months")
+    if not 50 <= request.simulations <= 2000:
+        raise HTTPException(status_code=422, detail="Simulations must be between 50 and 2000")
+
+    latest = get_latest_snapshot(startup_id)
+    starting_state = latest or {
+        "cash_on_hand": startup["initial_funding"],
+        "customer_count": startup["initial_customer_count"],
+        "price_per_customer": startup["initial_price"],
+        "marketing_spend": 1000,
+        "employee_count": max(1, startup["founder_count"]),
+    }
+    return analyze_strategies(
+        starting_state,
+        _strategy_churn_model,
+        _strategy_growth_model,
+        horizon_months=request.horizon_months,
+        simulations=request.simulations,
     )
