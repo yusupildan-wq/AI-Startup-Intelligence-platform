@@ -1,0 +1,32 @@
+{
+  "algorithm": "offline fitted Q iteration with Extra Trees",
+  "training_episodes": 900,
+  "training_transitions": 18736,
+  "q_iterations": 9,
+  "discount_factor": 0.97,
+  "actions": [
+    "hold",
+    "raise_price",
+    "lower_price",
+    "increase_marketing",
+    "decrease_marketing",
+    "hire_engineer",
+    "hire_sales",
+    "hire_support",
+    "reduce_headcount",
+    "fundraise",
+    "invest_in_product",
+    "enter_new_market"
+  ],
+  "policy": {
+    "average_return": 56.1051,
+    "survival_rate": 0.9688,
+    "median_company_value": 3974982.74
+  },
+  "random_baseline": {
+    "average_return": -9.2072,
+    "survival_rate": 0.2625,
+    "median_company_value": 457662.56
+  },
+  "data_source": "synthetic_startup_environment_v1"
+}

@@ -14,6 +14,7 @@ from prediction_engine import train_churn_model
 from strategy_engine import analyze_strategies
 from state_store import get_latest_snapshot
 from ml.digital_twin import predict_digital_twin
+from ml.ai_ceo import recommend_action, state_from_startup
 
 app = FastAPI()
 
@@ -175,6 +176,14 @@ def digital_twin_forecast(startup_id: int, user_id: int = Depends(verify_token))
         "warning": "Early synthetic model with limited live inputs; not financial advice.",
     }
     return result
+
+
+@app.get("/startups/{startup_id}/ai-ceo")
+def ai_ceo_decision(startup_id: int, user_id: int = Depends(verify_token)):
+    startup = get_owned_startup_or_403(startup_id, user_id)
+    latest = get_latest_snapshot(startup_id)
+    state = state_from_startup(startup, latest)
+    return recommend_action(state)
 
 
 @app.post("/startups/{startup_id}/simulate-next-month")

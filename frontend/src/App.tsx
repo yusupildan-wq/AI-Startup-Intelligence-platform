@@ -113,6 +113,20 @@ interface DigitalTwinResult {
   }
 }
 
+interface AICeoResult {
+  recommendation: { rank: number; action: string; action_label: string; long_term_value: number; explanation: string }
+  alternatives: Array<{ rank: number; action: string; action_label: string; long_term_value: number; explanation: string }>
+  projected_trajectory: Array<{ month: number; action: string; revenue: number; cash: number; customers: number; ownership: number; company_value: number }>
+  policy: {
+    algorithm: string
+    training_episodes: number
+    training_transitions: number
+    policy: { survival_rate: number; median_company_value: number }
+    random_baseline: { survival_rate: number; median_company_value: number }
+  }
+  limitations: string
+}
+
 function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(
     (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
@@ -150,6 +164,9 @@ function App() {
   const [digitalTwin, setDigitalTwin] = useState<DigitalTwinResult | null>(null)
   const [loadingTwin, setLoadingTwin] = useState(false)
   const [twinError, setTwinError] = useState('')
+  const [aiCeo, setAiCeo] = useState<AICeoResult | null>(null)
+  const [loadingCeo, setLoadingCeo] = useState(false)
+  const [ceoError, setCeoError] = useState('')
 
   useEffect(() => {
     fetch(`${API_URL}/model-metrics`)
@@ -351,6 +368,22 @@ function App() {
     }
   }
 
+  async function handleAskAiCeo() {
+    setLoadingCeo(true)
+    setCeoError('')
+    try {
+      const response = await fetch(`${API_URL}/startups/${createdStartupId}/ai-ceo`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!response.ok) throw new Error(`AI CEO failed (${response.status})`)
+      setAiCeo(await response.json())
+    } catch (error) {
+      setCeoError(error instanceof Error ? error.message : 'AI CEO failed')
+    } finally {
+      setLoadingCeo(false)
+    }
+  }
+
   function buildFeatureImportanceData(comparison: Record<string, ChurnModelResult>) {
     const featureNames = Object.keys(Object.values(comparison)[0]?.feature_importance ?? {})
     return featureNames.map((feature) => {
@@ -482,6 +515,52 @@ function App() {
         </form>
         {createdStartupId && <div className="badge">✓ Created startup #{createdStartupId}</div>}
       </div>
+
+      {createdStartupId && (
+        <div className="card ceo-card">
+          <div className="section-heading">
+            <div>
+              <h2>AI CEO</h2>
+              <p className="card-sub">A reinforcement-learning policy chooses what the company should do next.</p>
+            </div>
+            <button className="btn btn-secondary strategy-button" onClick={handleAskAiCeo} disabled={loadingCeo}>
+              {loadingCeo && <span className="spinner" />}
+              Ask AI CEO
+            </button>
+          </div>
+          {ceoError && <p className="error-text">{ceoError}</p>}
+          {aiCeo && (
+            <div className="ceo-results">
+              <div className="ceo-decision">
+                <span className="recommendation-label">Next decision</span>
+                <strong>{aiCeo.recommendation.action_label}</strong>
+                <p>{aiCeo.recommendation.explanation}</p>
+              </div>
+              <div className="ceo-benchmark">
+                <div><strong>{(aiCeo.policy.policy.survival_rate * 100).toFixed(1)}%</strong><span>AI survival</span></div>
+                <div><strong>{(aiCeo.policy.random_baseline.survival_rate * 100).toFixed(1)}%</strong><span>Random baseline</span></div>
+                <div><strong>{aiCeo.policy.training_transitions.toLocaleString()}</strong><span>Training decisions</span></div>
+              </div>
+              <p className="chart-title">Projected AI-controlled trajectory</p>
+              <ResponsiveContainer width="100%" height={210}>
+                <LineChart data={aiCeo.projected_trajectory}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                  <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 8 }} />
+                  <Legend />
+                  <Line type="monotone" dataKey="cash" stroke="#f59e0b" strokeWidth={2} />
+                  <Line type="monotone" dataKey="company_value" stroke="#6e7bff" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+              <div className="ceo-actions">
+                {aiCeo.alternatives.map((action) => <span key={action.action}>#{action.rank} {action.action_label}</span>)}
+              </div>
+              <p className="uncertainty-note">{aiCeo.limitations}</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {createdStartupId && (
         <div className="card twin-card">
