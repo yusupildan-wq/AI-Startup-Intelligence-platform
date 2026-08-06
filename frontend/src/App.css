@@ -466,6 +466,18 @@
 .world-event-log div { padding: 5px 0; border-bottom: 1px solid var(--border-soft); }
 .future-button { margin-top: 10px; }
 .generated-futures { margin-top: 12px; padding: 14px; border: 1px solid var(--border-soft); border-radius: 11px; background: var(--bg); }
+.official-data-actions { display: flex; gap: 8px; }
+.data-import-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+.data-import-panel { padding: 16px; border: 1px solid var(--border-soft); border-radius: 11px; background: var(--bg); }
+.data-import-panel p { color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+.data-import-panel .field { margin-bottom: 8px; }
+.inline-import { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.inline-import .field { margin: 0; }
+.data-textarea { min-height: 90px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; }
+.dataset-list { display: grid; gap: 7px; margin-top: 14px; }
+.dataset-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 11px 13px; border: 1px solid var(--border-soft); border-radius: 9px; }
+.dataset-row div { display: flex; flex-direction: column; gap: 3px; }
+.dataset-row span, .dataset-row code { color: var(--text-muted); font-size: 10px; }
 
 .badge {
   display: inline-flex;
@@ -629,4 +641,7 @@
   .twin-stats { grid-template-columns: 1fr; }
   .ceo-benchmark { grid-template-columns: 1fr; }
   .world-companies, .world-controls { grid-template-columns: 1fr; }
+  .data-import-grid { grid-template-columns: 1fr; }
+  .official-data-actions { width: 100%; flex-direction: column; }
+  .dataset-row { align-items: flex-start; flex-direction: column; }
 }

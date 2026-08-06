@@ -25,6 +25,8 @@ from world.store import (
     assert_world_owner, create_branch_record, create_world_record, ensure_world_tables,
     list_branches, list_events, list_worlds, load_engine, persist_advance,
 )
+from data.connectors import fetch_census_business_dynamics, fetch_fred_macro, fetch_sec_companyfacts, parse_long_csv
+from data.store import dataset_observations, ensure_data_tables, list_datasets, save_dataset
 
 app = FastAPI()
 
@@ -97,7 +99,19 @@ class GenerateTrajectoriesRequest(BaseModel):
     seed: int = 2028
 
 
+class OfficialDataImportRequest(BaseModel):
+    source: str
+    cik: str | None = None
+    start_year: int = 2010
+
+
+class CsvDataImportRequest(BaseModel):
+    dataset_name: str
+    csv_text: str
+
+
 _world_storage_ready = False
+_data_storage_ready = False
 
 
 def ensure_world_storage():
@@ -105,6 +119,13 @@ def ensure_world_storage():
     if not _world_storage_ready:
         ensure_world_tables()
         _world_storage_ready = True
+
+
+def ensure_data_storage():
+    global _data_storage_ready
+    if not _data_storage_ready:
+        ensure_data_tables()
+        _data_storage_ready = True
 
 
 @app.get("/health")
@@ -398,3 +419,42 @@ def generate_world_trajectories(world_id: str, branch_id: str, request: Generate
         raise HTTPException(status_code=422, detail="Horizon must be 1-36 and paths 20-1000")
     engine = get_owned_world_engine(world_id, branch_id, user_id)
     return generate_trajectories(engine.state, request.action, request.horizon, request.paths, request.seed)
+
+
+@app.get("/datasets")
+def get_datasets(user_id: int = Depends(verify_token)):
+    ensure_data_storage()
+    return list_datasets(user_id)
+
+
+@app.get("/datasets/{import_id}/observations")
+def get_dataset_observations(import_id: int, limit: int = 1000, user_id: int = Depends(verify_token)):
+    ensure_data_storage()
+    return dataset_observations(user_id, import_id, min(max(limit, 1), 5000))
+
+
+@app.post("/datasets/import/official")
+def import_official_dataset(request: OfficialDataImportRequest, user_id: int = Depends(verify_token)):
+    ensure_data_storage()
+    if request.source == "fred":
+        raw, observations, url = fetch_fred_macro(); name = "FRED macroeconomic indicators"
+    elif request.source == "census_bds":
+        raw, observations, url = fetch_census_business_dynamics(request.start_year); name = "Census Business Dynamics Statistics"
+    elif request.source == "sec_companyfacts":
+        if not request.cik: raise HTTPException(status_code=422, detail="CIK is required for SEC data")
+        raw, observations, url = fetch_sec_companyfacts(request.cik); name = f"SEC Company Facts CIK {request.cik}"
+    else:
+        raise HTTPException(status_code=422, detail="Source must be fred, census_bds, or sec_companyfacts")
+    return save_dataset(user_id, request.source, name, url, raw, observations,
+                        {"connector": "official_api", "requested_start_year": request.start_year})
+
+
+@app.post("/datasets/import/csv")
+def import_csv_dataset(request: CsvDataImportRequest, user_id: int = Depends(verify_token)):
+    ensure_data_storage()
+    try:
+        observations = parse_long_csv(request.csv_text)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return save_dataset(user_id, "user_csv", request.dataset_name, None, request.csv_text,
+                        observations, {"connector": "long_format_csv"})

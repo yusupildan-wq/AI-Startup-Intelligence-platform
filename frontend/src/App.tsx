@@ -180,6 +180,11 @@ interface GeneratedFutures {
   timeline: Array<{ month: number; cash_p10: number; cash_median: number; cash_p90: number; customers_median: number; revenue_median: number; survival_probability: number }>
 }
 
+interface DatasetImport {
+  id: number; source: string; dataset_name: string; source_url: string | null
+  content_sha256: string; row_count: number; imported_at: string
+}
+
 function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(
     (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
@@ -232,6 +237,12 @@ function App() {
   const [ceoError, setCeoError] = useState('')
   const [executingCeo, setExecutingCeo] = useState(false)
   const [executedDecision, setExecutedDecision] = useState('')
+  const [datasets, setDatasets] = useState<DatasetImport[]>([])
+  const [dataLoading, setDataLoading] = useState('')
+  const [dataError, setDataError] = useState('')
+  const [secCik, setSecCik] = useState('0000320193')
+  const [csvName, setCsvName] = useState('My startup observations')
+  const [csvText, setCsvText] = useState('date,series,value,unit,entity\n2026-01,MRR,12000,USD,My Startup')
 
   useEffect(() => {
     fetch(`${API_URL}/model-metrics`)
@@ -243,6 +254,13 @@ function App() {
     document.documentElement.setAttribute('data-theme', theme)
     localStorage.setItem('theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    if (!token) return
+    fetch(`${API_URL}/datasets`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => res.ok ? res.json() : [])
+      .then(setDatasets)
+  }, [token])
 
   useEffect(() => {
     const lenis = new Lenis({ duration: 1.1, easing: (t) => 1 - Math.pow(1 - t, 3) })
@@ -555,6 +573,43 @@ function App() {
     finally { setGeneratingFutures(false) }
   }
 
+  async function refreshDatasets() {
+    const response = await fetch(`${API_URL}/datasets`, { headers: { Authorization: `Bearer ${token}` } })
+    if (response.ok) setDatasets(await response.json())
+  }
+
+  async function importOfficialData(source: 'fred' | 'census_bds' | 'sec_companyfacts') {
+    setDataLoading(source); setDataError('')
+    try {
+      const response = await fetch(`${API_URL}/datasets/import/official`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ source, cik: source === 'sec_companyfacts' ? secCik : null, start_year: 2015 }),
+      })
+      if (!response.ok) {
+        const body = await response.json().catch(() => null)
+        throw new Error(body?.detail || `Import failed (${response.status})`)
+      }
+      await refreshDatasets()
+    } catch (error) { setDataError(error instanceof Error ? error.message : 'Import failed') }
+    finally { setDataLoading('') }
+  }
+
+  async function importCsvData() {
+    setDataLoading('csv'); setDataError('')
+    try {
+      const response = await fetch(`${API_URL}/datasets/import/csv`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ dataset_name: csvName, csv_text: csvText }),
+      })
+      if (!response.ok) {
+        const body = await response.json().catch(() => null)
+        throw new Error(body?.detail || `CSV import failed (${response.status})`)
+      }
+      await refreshDatasets()
+    } catch (error) { setDataError(error instanceof Error ? error.message : 'CSV import failed') }
+    finally { setDataLoading('') }
+  }
+
   const themeToggle = (
     <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
       {theme === 'dark' ? '☀ Light' : '☾ Dark'}
@@ -755,6 +810,42 @@ function App() {
             </details>
           </div>
         )}
+      </div>
+
+      <div className="card data-lab-card">
+        <div className="section-heading">
+          <div>
+            <h2>Real Data Lab</h2>
+            <p className="card-sub">Import versioned official evidence and your own time-series data with hashes and provenance.</p>
+          </div>
+          <div className="official-data-actions">
+            <button className="btn btn-secondary" onClick={() => importOfficialData('fred')} disabled={!!dataLoading}>{dataLoading === 'fred' && <span className="spinner" />}Sync FRED</button>
+            <button className="btn btn-secondary" onClick={() => importOfficialData('census_bds')} disabled={!!dataLoading}>{dataLoading === 'census_bds' && <span className="spinner" />}Sync Census BDS</button>
+          </div>
+        </div>
+        <div className="data-import-grid">
+          <div className="data-import-panel">
+            <strong>SEC Company Facts</strong>
+            <p>Pull audited 10-K and 10-Q facts directly from the SEC. Apple is the example CIK.</p>
+            <div className="inline-import"><input className="field" value={secCik} onChange={(e) => setSecCik(e.target.value)} placeholder="10-digit CIK" /><button className="btn btn-primary" onClick={() => importOfficialData('sec_companyfacts')} disabled={!!dataLoading}>Import SEC</button></div>
+          </div>
+          <div className="data-import-panel">
+            <strong>Your longitudinal CSV</strong>
+            <p>Required columns: date, series, value. Unit, entity, and any extra dimensions are preserved.</p>
+            <input className="field" value={csvName} onChange={(e) => setCsvName(e.target.value)} placeholder="Dataset name" />
+            <textarea className="field data-textarea" value={csvText} onChange={(e) => setCsvText(e.target.value)} />
+            <button className="btn btn-primary" onClick={importCsvData} disabled={!!dataLoading}>{dataLoading === 'csv' && <span className="spinner" />}Import CSV</button>
+          </div>
+        </div>
+        {dataError && <p className="error-text">{dataError}</p>}
+        <div className="dataset-list">
+          {datasets.length === 0 ? <p className="uncertainty-note">No datasets imported for this account yet.</p> : datasets.map((dataset) => (
+            <div className="dataset-row" key={dataset.id}>
+              <div><strong>{dataset.dataset_name}</strong><span>{dataset.source.replace(/_/g, ' ')} · {dataset.row_count.toLocaleString()} observations</span></div>
+              <code title={dataset.content_sha256}>SHA-256 {dataset.content_sha256.slice(0, 12)}…</code>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="card">

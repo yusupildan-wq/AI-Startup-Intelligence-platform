@@ -76,3 +76,29 @@ CREATE TABLE world_snapshots (
     PRIMARY KEY (world_id, branch_id, month),
     FOREIGN KEY (world_id, branch_id) REFERENCES world_branches(world_id, id) ON DELETE CASCADE
 );
+
+CREATE TABLE dataset_imports (
+    id BIGSERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    source TEXT NOT NULL,
+    dataset_name TEXT NOT NULL,
+    source_url TEXT,
+    content_sha256 TEXT NOT NULL,
+    row_count INTEGER NOT NULL,
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    imported_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
+CREATE TABLE external_observations (
+    id BIGSERIAL PRIMARY KEY,
+    import_id BIGINT NOT NULL REFERENCES dataset_imports(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    source TEXT NOT NULL,
+    series TEXT NOT NULL,
+    observation_date TEXT NOT NULL,
+    value DOUBLE PRECISION,
+    unit TEXT,
+    entity TEXT,
+    dimensions JSONB NOT NULL DEFAULT '{}'::jsonb,
+    UNIQUE (import_id, series, observation_date, entity)
+);
