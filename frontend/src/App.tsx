@@ -718,7 +718,7 @@ function App() {
 
   const themeToggle = (
     <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-      {theme === 'dark' ? '☀ Light' : '☾ Dark'}
+      <span className="theme-indicator" />{theme === 'dark' ? 'Light mode' : 'Dark mode'}
     </button>
   )
 
@@ -726,7 +726,7 @@ function App() {
     return (
       <div className="auth-screen">
         {themeToggle}
-        <h1>AI Startup Intelligence Platform</h1>
+        <div className="auth-brand"><span>S/01</span><h1>Startup<br />Civilization<br />Lab</h1></div>
         <div className="card auth-card">
           <form onSubmit={handleLogin}>
             <div className="field-stack">
@@ -836,7 +836,7 @@ function App() {
   return (
     <div className="app">
       <div className="topbar">
-        <h1>AI Startup Intelligence Platform</h1>
+        <div className="brand-lockup"><span className="brand-mark">S/01</span><h1>Startup<br />Civilization Lab</h1><em>Experimental operating system</em></div>
         <div className="topbar-actions">
           {themeToggle}
           <button className="theme-toggle" onClick={handleLogout}>Log Out</button>
