@@ -1,0 +1,11 @@
+{
+  "algorithm": "12-component full-covariance Gaussian mixture",
+  "data_source": "synthetic_civilization_population_v1",
+  "training_worlds": 28000,
+  "held_out_worlds": 7000,
+  "feature_count": 43,
+  "held_out_log_likelihood": -50.0264,
+  "generated_validity_rate_before_constraints": 1.0,
+  "real_vs_generated_auc": 0.7372,
+  "standardized_diversity": 1.3247
+}

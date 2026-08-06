@@ -85,6 +85,10 @@ interface ModelMetrics {
     competitor_policy: { accuracy: number; balanced_accuracy: number; majority_baseline: number }
     macro_regime: { accuracy: number; balanced_accuracy: number; majority_baseline: number }
   }
+  world_generator: {
+    algorithm: string; training_worlds: number; held_out_worlds: number; feature_count: number
+    real_vs_generated_auc: number; generated_validity_rate_before_constraints: number; standardized_diversity: number
+  }
 }
 
 interface Strategy {
@@ -206,6 +210,7 @@ function App() {
   const [worldShock, setWorldShock] = useState('')
   const [worldLoading, setWorldLoading] = useState(false)
   const [worldError, setWorldError] = useState('')
+  const [generationScenario, setGenerationScenario] = useState('balanced')
   const [strategyResult, setStrategyResult] = useState<StrategyLabResult | null>(null)
   const [analyzingStrategies, setAnalyzingStrategies] = useState(false)
   const [strategyError, setStrategyError] = useState('')
@@ -474,7 +479,7 @@ function App() {
     try {
       const response = await fetch(`${API_URL}/worlds`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: name || 'Startup Civilization', seed: Date.now() % 2147483647, startup_id: createdStartupId }),
+        body: JSON.stringify({ name: name || 'Startup Civilization', seed: Date.now() % 2147483647, startup_id: createdStartupId, generator: 'learned', scenario: generationScenario }),
       })
       if (!response.ok) throw new Error(`World creation failed (${response.status})`)
       const created = await response.json()
@@ -580,6 +585,16 @@ function App() {
                 </div>
               </div>
               <div className="ml-system">
+                <div className="ml-system-head"><strong>Generative World Model</strong><span>ACTIVE · PROBABILISTIC GENERATOR</span></div>
+                <p>Samples complete civilizations with correlated companies, markets, investors, customer segments, and economies.</p>
+                <div className="ml-facts">
+                  <span>{modelMetrics.world_generator.training_worlds.toLocaleString()} training worlds</span>
+                  <span>{modelMetrics.world_generator.feature_count} generated dimensions</span>
+                  <span>{(modelMetrics.world_generator.generated_validity_rate_before_constraints * 100).toFixed(0)}% raw validity</span>
+                  <span>Discriminator AUC {modelMetrics.world_generator.real_vs_generated_auc.toFixed(2)}</span>
+                </div>
+              </div>
+              <div className="ml-system">
                 <div className="ml-system-head"><strong>Economic Agent Models</strong><span>ACTIVE · INVESTORS + RIVALS + MACRO</span></div>
                 <p>Investors price funding offers, competitors select strategies, and the economy changes regimes.</p>
                 <div className="ml-facts">
@@ -639,7 +654,13 @@ function App() {
             <h2>Startup Civilization</h2>
             <p className="card-sub">Operate one company inside a persistent world of competitors, customers, investors, and economic regimes.</p>
           </div>
-          {!world && <button className="btn btn-primary world-launch" onClick={handleCreateWorld} disabled={worldLoading}>{worldLoading && <span className="spinner" />}Launch World</button>}
+          {!world && <div className="world-generator-controls">
+            <select className="field" value={generationScenario} onChange={(e) => setGenerationScenario(e.target.value)}>
+              <option value="balanced">Generated balanced world</option><option value="recession">Generated recession</option>
+              <option value="funding_boom">Generated funding boom</option><option value="technology_shift">Generated technology shift</option>
+            </select>
+            <button className="btn btn-primary world-launch" onClick={handleCreateWorld} disabled={worldLoading}>{worldLoading && <span className="spinner" />}Generate World</button>
+          </div>}
         </div>
         {worldError && <p className="error-text">{worldError}</p>}
         {world && (

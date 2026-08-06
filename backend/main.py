@@ -17,6 +17,7 @@ from ml.digital_twin import load_digital_twin, predict_digital_twin
 from ml.ai_ceo import load_ai_ceo, recommend_action, state_from_startup
 from ml.population_models import load_population_models
 from ml.economy_agents import load_economy_agents
+from ml.world_generator import generate_learned_world, load_world_generator
 from world import WorldEngine, create_world
 from world.events import ACTION_TYPES, SHOCK_TYPES
 from world.store import (
@@ -74,6 +75,8 @@ class CreateWorldRequest(BaseModel):
     name: str = "Startup Civilization"
     seed: int = 2026
     startup_id: int | None = None
+    generator: str = "learned"
+    scenario: str = "balanced"
 
 
 class AdvanceWorldRequest(BaseModel):
@@ -111,6 +114,7 @@ def model_metrics():
         "ai_ceo": load_ai_ceo()["metrics"],
         "population_models": load_population_models()["metrics"],
         "economy_agents": load_economy_agents()["metrics"],
+        "world_generator": load_world_generator()["metrics"],
     }
 
 
@@ -297,7 +301,12 @@ def get_worlds(user_id: int = Depends(verify_token)):
 @app.post("/worlds")
 def create_simulation_world(request: CreateWorldRequest, user_id: int = Depends(verify_token)):
     ensure_world_storage()
-    world = create_world(request.name, request.seed)
+    if request.generator not in {"learned", "template"}:
+        raise HTTPException(status_code=422, detail="Generator must be learned or template")
+    if request.scenario not in {"balanced", "recession", "funding_boom", "technology_shift"}:
+        raise HTTPException(status_code=422, detail="Unknown generation scenario")
+    world = (generate_learned_world(request.name, request.seed, request.scenario)
+             if request.generator == "learned" else create_world(request.name, request.seed))
     if request.startup_id is not None:
         startup = get_owned_startup_or_403(request.startup_id, user_id)
         latest = get_latest_snapshot(request.startup_id)

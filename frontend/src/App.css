@@ -444,6 +444,8 @@
 .legacy-models summary { cursor: pointer; }
 
 .world-launch { width: auto; white-space: nowrap; }
+.world-generator-controls { display: flex; gap: 8px; align-items: center; }
+.world-generator-controls .field { min-width: 210px; }
 .world-control-room { margin-top: 20px; }
 .world-status { display: flex; flex-wrap: wrap; gap: 8px; }
 .world-status span { padding: 7px 10px; border: 1px solid var(--border-soft); border-radius: 999px; color: var(--text-muted); font-size: 11px; }
