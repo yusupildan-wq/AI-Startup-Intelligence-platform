@@ -1,5 +1,17 @@
 import { useEffect, useState, type SubmitEvent } from 'react'
 import Lenis from 'lenis'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import './App.css'
 
 interface SimulationResult {
@@ -210,6 +222,18 @@ function App() {
     setLoadingHistory(false)
   }
 
+  function buildFeatureImportanceData(comparison: Record<string, ChurnModelResult>) {
+    const featureNames = Object.keys(Object.values(comparison)[0]?.feature_importance ?? {})
+    return featureNames.map((feature) => {
+      const row: Record<string, string | number> = { feature }
+      for (const [modelName, result] of Object.entries(comparison)) {
+        const total = Object.values(result.feature_importance).reduce((sum, v) => sum + Math.abs(v), 0)
+        row[modelName] = total > 0 ? Math.abs(result.feature_importance[feature]) / total : 0
+      }
+      return row
+    })
+  }
+
   const themeToggle = (
     <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
       {theme === 'dark' ? '☀ Light' : '☾ Dark'}
@@ -272,6 +296,23 @@ function App() {
               Growth model (linear regression): R² {modelMetrics.growth_model.r2.toFixed(2)}, MAE{' '}
               {modelMetrics.growth_model.mae.toFixed(1)} customers
             </p>
+
+            <p className="chart-title">Feature importance by model</p>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={buildFeatureImportanceData(modelMetrics.churn_model_comparison)}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
+                <XAxis dataKey="feature" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
+                <Tooltip
+                  contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+                  formatter={(v: number) => `${(v * 100).toFixed(1)}%`}
+                />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="logistic_regression" fill="#6e7bff" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="random_forest" fill="#4ade80" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="xgboost" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         )}
       </div>
@@ -357,6 +398,21 @@ function App() {
             {loadingHistory && <span className="spinner" />}
             Refresh History
           </button>
+          {history.length > 0 && (
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={history}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
+                <XAxis dataKey="month_number" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} label={{ value: 'Month', position: 'insideBottom', offset: -5, fontSize: 11, fill: 'var(--text-muted)' }} />
+                <YAxis yAxisId="money" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                <YAxis yAxisId="customers" orientation="right" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                <Tooltip contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Line yAxisId="money" type="monotone" dataKey="revenue" stroke="#6e7bff" strokeWidth={2} dot={false} />
+                <Line yAxisId="money" type="monotone" dataKey="cash_on_hand" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                <Line yAxisId="customers" type="monotone" dataKey="customer_count" stroke="#4ade80" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
           <ul className="history-list">
             {history.map((snapshot) => (
               <li className="history-row" key={snapshot.id}>

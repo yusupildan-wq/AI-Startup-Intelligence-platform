@@ -319,7 +319,15 @@
 
 .metrics-card {
   width: 100%;
-  max-width: 420px;
+  max-width: 480px;
+}
+
+.chart-title {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 20px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .metrics-table {
