@@ -12,6 +12,8 @@ interface SimulationResult {
   customer_count: number
   employee_count: number
   marketing_spend: number
+  customers_churned: number
+  customers_acquired: number
   narration: string
 }
 
@@ -22,6 +24,7 @@ interface Snapshot {
   cash_on_hand: number
   customer_count: number
   customers_churned: number
+  customers_acquired: number
 }
 
 function App() {
@@ -283,6 +286,11 @@ function App() {
                 <div>
                   <div className="stat-label">Customers</div>
                   <div className="stat-value">{simResult.customer_count}</div>
+                  <div className="stat-delta">
+                    <span className="stat-positive">+{simResult.customers_acquired}</span>
+                    {' / '}
+                    <span className="stat-negative">-{simResult.customers_churned}</span>
+                  </div>
                 </div>
               </div>
               <p className="narration">{simResult.narration}</p>
@@ -304,7 +312,7 @@ function App() {
                 <span className="history-month">Month {snapshot.month_number}</span>
                 <span>${snapshot.revenue.toLocaleString()} revenue</span>
                 <span>${snapshot.cash_on_hand.toLocaleString()} cash</span>
-                <span>{snapshot.customer_count} customers</span>
+                <span>{snapshot.customer_count} customers (+{snapshot.customers_acquired}/-{snapshot.customers_churned})</span>
               </li>
             ))}
           </ul>

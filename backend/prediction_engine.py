@@ -1,7 +1,7 @@
 import numpy as np
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.metrics import accuracy_score, mean_absolute_error, precision_score, r2_score, recall_score
 
 
 def generate_training_data(n=200, seed=42):
@@ -40,6 +40,47 @@ def train_churn_model():
 def predict_churn_probability(model, days_since_login, support_tickets, price):
     features = np.array([[days_since_login, support_tickets, price]])
     return model.predict_proba(features)[0][1]
+
+
+def generate_growth_training_data(n=200, seed=7):
+    rng = np.random.default_rng(seed)
+    marketing_spend = rng.uniform(0, 5000, n)
+    price = rng.choice([20, 30, 40, 50, 80], n)
+    existing_customers = rng.integers(0, 2000, n)
+
+    # Diminishing returns on marketing spend, organic word-of-mouth from existing base, price sensitivity.
+    organic_growth = existing_customers * 0.01
+    marketing_growth = 0.8 * np.sqrt(marketing_spend)
+    price_penalty = price * 0.05
+    noise = rng.normal(0, 3, n)
+
+    new_customers = np.maximum(0, organic_growth + marketing_growth - price_penalty + noise)
+
+    features = np.column_stack([marketing_spend, price, existing_customers])
+    return features, new_customers
+
+
+def train_growth_model():
+    features, labels = generate_growth_training_data()
+    X_train, X_test, y_train, y_test = train_test_split(
+        features, labels, test_size=0.2, random_state=7
+    )
+
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+
+    predictions = model.predict(X_test)
+    metrics = {
+        "mae": mean_absolute_error(y_test, predictions),
+        "r2": r2_score(y_test, predictions),
+    }
+    return model, metrics
+
+
+def predict_new_customers(model, marketing_spend, price, existing_customers):
+    features = np.array([[marketing_spend, price, existing_customers]])
+    prediction = model.predict(features)[0]
+    return max(0, round(prediction))
 
 
 if __name__ == "__main__":

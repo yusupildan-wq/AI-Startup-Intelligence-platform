@@ -12,6 +12,7 @@ Only describe the facts given below. Do not invent or estimate any numbers not l
 
 Revenue: ${snapshot['revenue']}
 Total customers: {snapshot['customer_count']}
+New customers acquired this month: {snapshot['customers_acquired']}
 Customers churned this month: {snapshot['customers_churned']}
 Cash on hand: ${snapshot['cash_on_hand']}
 Marketing spend: ${snapshot['marketing_spend']}

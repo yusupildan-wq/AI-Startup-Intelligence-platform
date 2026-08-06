@@ -24,6 +24,7 @@ CREATE TABLE monthly_snapshots (
     cash_on_hand NUMERIC(12,2) NOT NULL,
     customer_count INTEGER NOT NULL,
     customers_churned INTEGER NOT NULL,
+    customers_acquired INTEGER NOT NULL DEFAULT 0,
     revenue NUMERIC(12,2) NOT NULL,
     employee_count INTEGER NOT NULL,
     investor_count INTEGER NOT NULL,

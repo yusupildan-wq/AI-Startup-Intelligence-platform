@@ -85,6 +85,7 @@ def insert_monthly_snapshot(
     cash_on_hand,
     customer_count,
     customers_churned,
+    customers_acquired,
     revenue,
     employee_count,
     investor_count,
@@ -98,14 +99,14 @@ def insert_monthly_snapshot(
                 """
                 INSERT INTO monthly_snapshots (
                     startup_id, month_number, cash_on_hand, customer_count,
-                    customers_churned, revenue, employee_count, investor_count,
+                    customers_churned, customers_acquired, revenue, employee_count, investor_count,
                     funding_raised_to_date, price_per_customer, marketing_spend
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     startup_id, month_number, cash_on_hand, customer_count,
-                    customers_churned, revenue, employee_count, investor_count,
+                    customers_churned, customers_acquired, revenue, employee_count, investor_count,
                     funding_raised_to_date, price_per_customer, marketing_spend,
                 ),
             )

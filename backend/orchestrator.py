@@ -1,9 +1,10 @@
-from prediction_engine import train_churn_model, predict_churn_probability
+from prediction_engine import train_churn_model, predict_churn_probability, train_growth_model, predict_new_customers
 from calculation_engine import compute_monthly_snapshot
 from state_store import get_latest_snapshot, insert_monthly_snapshot, get_startup
 from narration_layer import generate_narration
 
-_model, _ = train_churn_model()
+_churn_model, _ = train_churn_model()
+_growth_model, _ = train_growth_model()
 
 
 def run_month(startup_id, marketing_spend, employee_count, avg_days_since_login=15, avg_support_tickets=1):
@@ -21,10 +22,15 @@ def run_month(startup_id, marketing_spend, employee_count, avg_days_since_login=
         }
 
     churn_probability = predict_churn_probability(
-        _model, avg_days_since_login, avg_support_tickets, float(previous["price_per_customer"])
+        _churn_model, avg_days_since_login, avg_support_tickets, float(previous["price_per_customer"])
     )
     customers_churned = round(previous["customer_count"] * churn_probability)
-    new_customer_count = previous["customer_count"] - customers_churned
+
+    customers_acquired = predict_new_customers(
+        _growth_model, marketing_spend, float(previous["price_per_customer"]), previous["customer_count"]
+    )
+
+    new_customer_count = previous["customer_count"] - customers_churned + customers_acquired
 
     computed = compute_monthly_snapshot(
         previous_snapshot=previous,
@@ -41,6 +47,7 @@ def run_month(startup_id, marketing_spend, employee_count, avg_days_since_login=
         cash_on_hand=computed["cash_on_hand"],
         customer_count=computed["customer_count"],
         customers_churned=customers_churned,
+        customers_acquired=customers_acquired,
         revenue=computed["revenue"],
         employee_count=computed["employee_count"],
         investor_count=previous["investor_count"],
@@ -54,10 +61,11 @@ def run_month(startup_id, marketing_spend, employee_count, avg_days_since_login=
         "revenue": computed["revenue"],
         "customer_count": computed["customer_count"],
         "customers_churned": customers_churned,
+        "customers_acquired": customers_acquired,
         "cash_on_hand": computed["cash_on_hand"],
         "marketing_spend": computed["marketing_spend"],
         "employee_count": computed["employee_count"],
     }
     narration = generate_narration(narration_input)
 
-    return {**computed, "narration": narration}
+    return {**computed, "customers_churned": customers_churned, "customers_acquired": customers_acquired, "narration": narration}
