@@ -1,0 +1,21 @@
+{
+  "data_source": "synthetic_economy_agents_v1",
+  "rows_per_system": 45000,
+  "investor": {
+    "roc_auc": 0.7873,
+    "accuracy": 0.7416,
+    "funding_rate": 0.6383,
+    "amount_mae": 909895.0,
+    "amount_r2": 0.8633
+  },
+  "competitor_policy": {
+    "accuracy": 0.5933,
+    "balanced_accuracy": 0.4009,
+    "majority_baseline": 0.4216
+  },
+  "macro_regime": {
+    "accuracy": 0.7249,
+    "balanced_accuracy": 0.7408,
+    "majority_baseline": 0.812
+  }
+}

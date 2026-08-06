@@ -79,6 +79,12 @@ interface ModelMetrics {
     employee_attrition: { roc_auc: number; balanced_accuracy: number; majority_baseline_accuracy: number }
     product_adoption: { roc_auc: number; balanced_accuracy: number; majority_baseline_accuracy: number }
   }
+  economy_agents: {
+    rows_per_system: number; data_source: string
+    investor: { roc_auc: number; amount_r2: number }
+    competitor_policy: { accuracy: number; balanced_accuracy: number; majority_baseline: number }
+    macro_regime: { accuracy: number; balanced_accuracy: number; majority_baseline: number }
+  }
 }
 
 interface Strategy {
@@ -148,6 +154,7 @@ interface WorldCompany {
   engineers: number; salespeople: number; support: number; product_quality: number
   technical_debt: number; reputation: number; founder_ownership: number; revenue: number; alive: boolean
   customers_acquired: number; customers_churned: number; employees_departed: number; product_adoption_rate: number
+  last_action: string; last_funding_probability: number; last_funding_raised: number
 }
 
 interface CivilizationWorld {
@@ -573,6 +580,16 @@ function App() {
                 </div>
               </div>
               <div className="ml-system">
+                <div className="ml-system-head"><strong>Economic Agent Models</strong><span>ACTIVE · INVESTORS + RIVALS + MACRO</span></div>
+                <p>Investors price funding offers, competitors select strategies, and the economy changes regimes.</p>
+                <div className="ml-facts">
+                  <span>Investor AUC {modelMetrics.economy_agents.investor.roc_auc.toFixed(2)}</span>
+                  <span>Valuation R² {modelMetrics.economy_agents.investor.amount_r2.toFixed(2)}</span>
+                  <span>Competitor balanced accuracy {modelMetrics.economy_agents.competitor_policy.balanced_accuracy.toFixed(2)}</span>
+                  <span>Macro balanced accuracy {modelMetrics.economy_agents.macro_regime.balanced_accuracy.toFixed(2)}</span>
+                </div>
+              </div>
+              <div className="ml-system">
                 <div className="ml-system-head"><strong>Behavioral Population Models</strong><span>ACTIVE · 3 LEARNED SYSTEMS</span></div>
                 <p>Customers choose products, employees leave or stay, and segments adopt new product value.</p>
                 <div className="ml-facts">
@@ -639,6 +656,7 @@ function App() {
                   <p>${company.revenue.toLocaleString()} revenue · ${company.cash.toLocaleString()} cash</p>
                   <p>{company.customers} customers · ${company.price.toFixed(0)} price · {(company.product_quality * 100).toFixed(0)}% quality</p>
                   <p className="population-flow">+{company.customers_acquired} acquired · −{company.customers_churned} churned · {company.employees_departed} staff left · {(company.product_adoption_rate * 100).toFixed(0)}% adoption</p>
+                  <p>Last action: <b>{company.last_action.replace(/_/g, ' ')}</b>{company.last_funding_raised > 0 ? ` · raised $${company.last_funding_raised.toLocaleString()}` : ''}</p>
                 </div>
               ))}
             </div>

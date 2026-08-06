@@ -23,6 +23,9 @@ class Company:
     customers_churned: int = 0
     employees_departed: int = 0
     product_adoption_rate: float = 0
+    last_action: str = "hold"
+    last_funding_probability: float = 0
+    last_funding_raised: float = 0
 
 
 @dataclass

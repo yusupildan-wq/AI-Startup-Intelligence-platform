@@ -9,6 +9,7 @@ from ml.population_models import (
     customer_purchase_probability, employee_departure_probability,
     product_adoption_probability,
 )
+from ml.economy_agents import competitor_action, investor_offer, macro_regime
 from world.events import ACTION_TYPES, SHOCK_TYPES, WorldEvent
 from world.models import Company, MacroEconomy, WorldState
 
@@ -38,7 +39,8 @@ class WorldEngine:
 
         for event in generated:
             self.apply(event)
-        self.apply(self._advance_macro(rng, month))
+        if not shock:
+            self.apply(self._advance_macro(rng, month))
         for company_id in sorted(self.state.companies):
             company = self.state.companies[company_id]
             if company.alive:
@@ -80,6 +82,8 @@ class WorldEngine:
         return replayed.state
 
     def _apply_action(self, company: Company, action: str):
+        company.last_action = action
+        company.last_funding_raised = 0
         if action == "raise_price": company.price *= 1.12
         elif action == "lower_price": company.price *= 0.9
         elif action == "increase_marketing": company.marketing = company.marketing * 1.4 + 500
@@ -94,10 +98,21 @@ class WorldEngine:
             company.cash -= 25_000; company.product_quality = min(1, company.product_quality + 0.05); company.technical_debt = max(0, company.technical_debt - 0.06)
         elif action == "enter_new_market": company.cash -= 40_000; company.reputation = min(1, company.reputation + 0.03)
         elif action == "fundraise":
-            raised = min(self.state.investors.available_capital, max(0, company.revenue * 18 + 250_000))
-            dilution = min(0.25, raised / max(raised + company.cash + company.revenue * 48, 1))
-            company.cash += raised; company.founder_ownership *= 1 - dilution
-            self.state.investors.available_capital -= raised
+            monthly_cost = (company.engineers + company.salespeople + company.support) * 7_000 + company.marketing + 1_500
+            burn = monthly_cost - company.revenue
+            runway = company.cash / max(burn, 1) if burn > 0 else 36
+            probability, proposed = investor_offer([
+                0, company.revenue, company.cash, min(36, runway), company.product_quality,
+                company.reputation, self.state.macro.venture_sentiment,
+                self.state.macro.interest_rate, company.founder_ownership,
+            ])
+            company.last_funding_probability = probability
+            if probability >= .5:
+                raised = min(self.state.investors.available_capital, proposed)
+                dilution = min(0.25, raised / max(raised + company.cash + company.revenue * 48, 1))
+                company.cash += raised; company.founder_ownership *= 1 - dilution
+                company.last_funding_raised = raised
+                self.state.investors.available_capital -= raised
 
     def _resolve_company_month(self, company, rng, month):
         macro = self.state.macro
@@ -160,15 +175,38 @@ class WorldEngine:
         })
 
     def _competitor_action(self, company, rng):
-        if company.cash < 100_000: return "decrease_marketing" if company.marketing > 1000 else "fundraise"
-        choices = ["hold", "raise_price", "increase_marketing", "hire_engineer", "hire_sales", "invest_in_product"]
-        return str(rng.choice(choices))
+        rivals = [item for item in self.state.companies.values() if item.id != company.id and item.alive]
+        average_price = np.mean([item.price for item in rivals])
+        average_quality = np.mean([item.product_quality for item in rivals])
+        monthly_cost = (company.engineers + company.salespeople + company.support) * 7_000 + company.marketing + 1_500
+        return competitor_action([
+            company.cash / max(monthly_cost, 1), 0, company.price / max(average_price, 1),
+            company.product_quality - average_quality, company.marketing / max(company.revenue, 1),
+            company.technical_debt, self.state.macro.demand_multiplier,
+            self.state.macro.venture_sentiment,
+            min(1, (company.engineers + company.salespeople + company.support) / 20),
+            min(1, len(rivals) / 10),
+        ])
 
     def _advance_macro(self, rng, month):
         macro = self.state.macro
+        cycle = np.sin(month / 12 * 2 * np.pi)
+        predicted = macro_regime([
+            macro.demand_multiplier, macro.interest_rate, macro.unemployment_rate,
+            macro.venture_sentiment, .025 + .012 * max(0, cycle),
+            macro.venture_sentiment - .5, cycle * .12, cycle * .18,
+        ])
+        targets = {
+            "recession": (.72, .18, .08, .085), "stable": (1.0, .52, .05, .05),
+            "expansion": (1.2, .7, .035, .038), "funding_boom": (1.28, .92, .025, .035),
+        }
+        demand_target, sentiment_target, rate_target, unemployment_target = targets[predicted]
         return WorldEvent(month, "macro_updated", "world", {
-            "demand_multiplier": float(np.clip(0.88 * macro.demand_multiplier + 0.12 * rng.normal(1, 0.12), 0.55, 1.45)),
-            "venture_sentiment": float(np.clip(0.85 * macro.venture_sentiment + 0.15 * rng.uniform(0.25, 0.9), 0, 1)),
+            "regime": predicted,
+            "demand_multiplier": float(np.clip(.75 * macro.demand_multiplier + .25 * demand_target, .55, 1.45)),
+            "venture_sentiment": float(np.clip(.75 * macro.venture_sentiment + .25 * sentiment_target, 0, 1)),
+            "interest_rate": float(.8 * macro.interest_rate + .2 * rate_target),
+            "unemployment_rate": float(.8 * macro.unemployment_rate + .2 * unemployment_target),
         })
 
     def _shock_event(self, month, shock):
