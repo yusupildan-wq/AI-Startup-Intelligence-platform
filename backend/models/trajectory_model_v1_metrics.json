@@ -1,0 +1,33 @@
+{
+  "algorithm": "Extra Trees transition mean + 8-component residual mixture",
+  "data_source": "generated_civilization_trajectories_v1",
+  "training_worlds": 100,
+  "held_out_worlds": 30,
+  "training_transitions": 1181,
+  "test_transitions": 360,
+  "state_dimensions": 41,
+  "action_count": 12,
+  "interval_80_coverage": 0.6459,
+  "targets": {
+    "player_cash": {
+      "mae": 53787.8037,
+      "r2": 0.9767
+    },
+    "player_customers": {
+      "mae": 17.3491,
+      "r2": 0.2096
+    },
+    "player_revenue": {
+      "mae": 4459.3813,
+      "r2": 0.8668
+    },
+    "player_product_quality": {
+      "mae": 0.0065,
+      "r2": 0.2342
+    },
+    "demand_multiplier": {
+      "mae": 0.0154,
+      "r2": 0.2658
+    }
+  }
+}

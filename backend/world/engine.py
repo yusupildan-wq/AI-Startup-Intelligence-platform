@@ -117,12 +117,14 @@ class WorldEngine:
     def _resolve_company_month(self, company, rng, month):
         macro = self.state.macro
         competitors = [item for item in self.state.companies.values() if item.id != company.id and item.alive]
-        relative_quality = company.product_quality - np.mean([item.product_quality for item in competitors])
-        relative_price = company.price / max(np.mean([item.price for item in competitors]), 1)
+        average_quality = np.mean([item.product_quality for item in competitors]) if competitors else company.product_quality
+        average_price = np.mean([item.price for item in competitors]) if competitors else company.price
+        relative_quality = company.product_quality - average_quality
+        relative_price = company.price / max(average_price, 1)
         addressable = sum(segment.population * (1 + segment.growth_rate) ** month for segment in self.state.segments.values())
         competitor_utility = float(np.mean([
             item.product_quality + item.reputation - item.price / 300 for item in competitors
-        ]))
+        ])) if competitors else 0.0
         acquired = 0
         adoption_rates = []
         for segment in self.state.segments.values():
@@ -176,8 +178,8 @@ class WorldEngine:
 
     def _competitor_action(self, company, rng):
         rivals = [item for item in self.state.companies.values() if item.id != company.id and item.alive]
-        average_price = np.mean([item.price for item in rivals])
-        average_quality = np.mean([item.product_quality for item in rivals])
+        average_price = np.mean([item.price for item in rivals]) if rivals else company.price
+        average_quality = np.mean([item.product_quality for item in rivals]) if rivals else company.product_quality
         monthly_cost = (company.engineers + company.salespeople + company.support) * 7_000 + company.marketing + 1_500
         return competitor_action([
             company.cash / max(monthly_cost, 1), 0, company.price / max(average_price, 1),

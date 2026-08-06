@@ -8,7 +8,10 @@ from ml.train_population_models import ARTIFACT_PATH
 
 @lru_cache(maxsize=1)
 def load_population_models():
-    return joblib.load(ARTIFACT_PATH)
+    artifact = joblib.load(ARTIFACT_PATH)
+    if hasattr(artifact["employee_attrition"], "n_jobs"):
+        artifact["employee_attrition"].n_jobs = 1
+    return artifact
 
 
 def customer_purchase_probability(segment, company, competitor_utility, demand_multiplier):

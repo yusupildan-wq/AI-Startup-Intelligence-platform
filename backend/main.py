@@ -18,6 +18,7 @@ from ml.ai_ceo import load_ai_ceo, recommend_action, state_from_startup
 from ml.population_models import load_population_models
 from ml.economy_agents import load_economy_agents
 from ml.world_generator import generate_learned_world, load_world_generator
+from ml.trajectory_model import generate_trajectories, load_trajectory_model
 from world import WorldEngine, create_world
 from world.events import ACTION_TYPES, SHOCK_TYPES
 from world.store import (
@@ -89,6 +90,13 @@ class BranchWorldRequest(BaseModel):
     name: str
 
 
+class GenerateTrajectoriesRequest(BaseModel):
+    action: str = "hold"
+    horizon: int = 12
+    paths: int = 150
+    seed: int = 2028
+
+
 _world_storage_ready = False
 
 
@@ -115,6 +123,7 @@ def model_metrics():
         "population_models": load_population_models()["metrics"],
         "economy_agents": load_economy_agents()["metrics"],
         "world_generator": load_world_generator()["metrics"],
+        "trajectory_model": load_trajectory_model()["metrics"],
     }
 
 
@@ -378,3 +387,14 @@ def branch_world(world_id: str, branch_id: str, request: BranchWorldRequest,
 def get_world_events(world_id: str, branch_id: str, user_id: int = Depends(verify_token)):
     get_owned_world_engine(world_id, branch_id, user_id)
     return list_events(world_id, branch_id)
+
+
+@app.post("/worlds/{world_id}/branches/{branch_id}/generate-trajectories")
+def generate_world_trajectories(world_id: str, branch_id: str, request: GenerateTrajectoriesRequest,
+                                user_id: int = Depends(verify_token)):
+    if request.action not in ACTION_TYPES:
+        raise HTTPException(status_code=422, detail="Unknown action")
+    if not 1 <= request.horizon <= 36 or not 20 <= request.paths <= 1000:
+        raise HTTPException(status_code=422, detail="Horizon must be 1-36 and paths 20-1000")
+    engine = get_owned_world_engine(world_id, branch_id, user_id)
+    return generate_trajectories(engine.state, request.action, request.horizon, request.paths, request.seed)

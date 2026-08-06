@@ -8,7 +8,11 @@ from ml.train_economy_agents import ARTIFACT_PATH, COMPETITOR_ACTIONS, MACRO_REG
 
 @lru_cache(maxsize=1)
 def load_economy_agents():
-    return joblib.load(ARTIFACT_PATH)
+    artifact = joblib.load(ARTIFACT_PATH)
+    for name in ("valuation", "competitor"):
+        if hasattr(artifact[name], "n_jobs"):
+            artifact[name].n_jobs = 1
+    return artifact
 
 
 def investor_offer(features):

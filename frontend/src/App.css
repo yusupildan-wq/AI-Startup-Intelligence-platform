@@ -464,6 +464,8 @@
 .world-event-log { margin-top: 13px; color: var(--text-muted); font-size: 11px; }
 .world-event-log summary { cursor: pointer; margin-bottom: 8px; }
 .world-event-log div { padding: 5px 0; border-bottom: 1px solid var(--border-soft); }
+.future-button { margin-top: 10px; }
+.generated-futures { margin-top: 12px; padding: 14px; border: 1px solid var(--border-soft); border-radius: 11px; background: var(--bg); }
 
 .badge {
   display: inline-flex;

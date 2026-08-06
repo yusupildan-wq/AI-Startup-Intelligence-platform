@@ -89,6 +89,10 @@ interface ModelMetrics {
     algorithm: string; training_worlds: number; held_out_worlds: number; feature_count: number
     real_vs_generated_auc: number; generated_validity_rate_before_constraints: number; standardized_diversity: number
   }
+  trajectory_model: {
+    algorithm: string; training_worlds: number; held_out_worlds: number; training_transitions: number
+    state_dimensions: number; action_count: number; interval_80_coverage: number
+  }
 }
 
 interface Strategy {
@@ -171,6 +175,10 @@ interface CivilizationWorld {
 
 interface WorldEvent { id: string; month: number; type: string; actor_id: string; payload: Record<string, unknown> }
 interface WorldBranch { id: string; parent_branch_id: string | null; fork_month: number; name: string; current_month: number }
+interface GeneratedFutures {
+  action: string; horizon: number; paths: number; limitations: string
+  timeline: Array<{ month: number; cash_p10: number; cash_median: number; cash_p90: number; customers_median: number; revenue_median: number; survival_probability: number }>
+}
 
 function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(
@@ -211,6 +219,8 @@ function App() {
   const [worldLoading, setWorldLoading] = useState(false)
   const [worldError, setWorldError] = useState('')
   const [generationScenario, setGenerationScenario] = useState('balanced')
+  const [generatedFutures, setGeneratedFutures] = useState<GeneratedFutures | null>(null)
+  const [generatingFutures, setGeneratingFutures] = useState(false)
   const [strategyResult, setStrategyResult] = useState<StrategyLabResult | null>(null)
   const [analyzingStrategies, setAnalyzingStrategies] = useState(false)
   const [strategyError, setStrategyError] = useState('')
@@ -531,6 +541,20 @@ function App() {
     }
   }
 
+  async function handleGenerateFutures() {
+    if (!world) return
+    setGeneratingFutures(true); setWorldError('')
+    try {
+      const response = await fetch(`${API_URL}/worlds/${world.id}/branches/${world.branch_id}/generate-trajectories`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: worldAction, horizon: 12, paths: 150, seed: Date.now() % 2147483647 }),
+      })
+      if (!response.ok) throw new Error(`Future generation failed (${response.status})`)
+      setGeneratedFutures(await response.json())
+    } catch (error) { setWorldError(error instanceof Error ? error.message : 'Future generation failed') }
+    finally { setGeneratingFutures(false) }
+  }
+
   const themeToggle = (
     <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
       {theme === 'dark' ? '☀ Light' : '☾ Dark'}
@@ -582,6 +606,16 @@ function App() {
                   <span>Revenue R² <b>{modelMetrics.digital_twin.future_revenue.r2.toFixed(2)}</b></span>
                   <span>Customers R² <b>{modelMetrics.digital_twin.future_customer_count.r2.toFixed(2)}</b></span>
                   <span>Cash R² <b>{modelMetrics.digital_twin.future_cash_on_hand.r2.toFixed(2)}</b></span>
+                </div>
+              </div>
+              <div className="ml-system">
+                <div className="ml-system-head"><strong>Generative Trajectory Model</strong><span>ACTIVE · ACTION-CONDITIONED</span></div>
+                <p>Recursively samples correlated multi-month futures from the current world and selected decision.</p>
+                <div className="ml-facts">
+                  <span>{modelMetrics.trajectory_model.training_transitions.toLocaleString()} transitions</span>
+                  <span>{modelMetrics.trajectory_model.state_dimensions} state dimensions</span>
+                  <span>{modelMetrics.trajectory_model.action_count} actions</span>
+                  <span>{(modelMetrics.trajectory_model.interval_80_coverage * 100).toFixed(1)}% interval coverage</span>
                 </div>
               </div>
               <div className="ml-system">
@@ -691,6 +725,27 @@ function App() {
               <button className="btn btn-primary" onClick={handleAdvanceWorld} disabled={worldLoading}>{worldLoading && <span className="spinner" />}Advance Month</button>
               <button className="btn btn-secondary" onClick={handleBranchWorld} disabled={worldLoading}>Fork Timeline</button>
             </div>
+            <button className="btn btn-secondary future-button" onClick={handleGenerateFutures} disabled={generatingFutures}>
+              {generatingFutures && <span className="spinner" />}Generate 150 Possible Futures for “{worldAction.replace(/_/g, ' ')}”
+            </button>
+            {generatedFutures && (
+              <div className="generated-futures">
+                <p className="chart-title">Generated 12-month uncertainty · {generatedFutures.paths} paths</p>
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={generatedFutures.timeline}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                    <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 8 }} />
+                    <Legend />
+                    <Line type="monotone" dataKey="cash_p10" name="Stress cash" stroke="#ff6b6b" dot={false} />
+                    <Line type="monotone" dataKey="cash_median" name="Median cash" stroke="#6e7bff" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="cash_p90" name="Upside cash" stroke="#4ade80" dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+                <p className="uncertainty-note">Month {generatedFutures.timeline.at(-1)?.month}: {((generatedFutures.timeline.at(-1)?.survival_probability ?? 0) * 100).toFixed(1)}% generated survival. {generatedFutures.limitations}</p>
+              </div>
+            )}
             <div className="branch-tabs">
               {worldBranches.map((branch) => <button className={branch.id === world.branch_id ? 'active' : ''} onClick={() => handleSwitchBranch(branch.id)} key={branch.id}>{branch.name} · M{branch.current_month}</button>)}
             </div>
