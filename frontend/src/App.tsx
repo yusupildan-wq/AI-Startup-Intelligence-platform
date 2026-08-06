@@ -14,6 +14,13 @@ import {
 } from 'recharts'
 import './App.css'
 
+interface FundraisingResult {
+  attempted: boolean
+  success_probability: number
+  raised: boolean
+  amount_raised: number
+}
+
 interface SimulationResult {
   revenue: number
   monthly_costs: number
@@ -28,6 +35,9 @@ interface SimulationResult {
   customers_acquired: number
   market_condition: string
   market_multiplier: number
+  investor_count: number
+  funding_raised_to_date: number
+  fundraising_result: FundraisingResult | null
   narration: string
 }
 
@@ -51,6 +61,7 @@ interface ChurnModelResult {
 interface ModelMetrics {
   churn_model_comparison: Record<string, ChurnModelResult>
   growth_model: { mae: number; r2: number }
+  fundraising_model: { accuracy: number; precision: number; recall: number }
 }
 
 function App() {
@@ -75,6 +86,7 @@ function App() {
 
   const [simMarketingSpend, setSimMarketingSpend] = useState('')
   const [simEmployeeCount, setSimEmployeeCount] = useState('')
+  const [attemptFundraising, setAttemptFundraising] = useState(false)
   const [simResult, setSimResult] = useState<SimulationResult | null>(null)
   const [simulating, setSimulating] = useState(false)
 
@@ -205,6 +217,7 @@ function App() {
         body: JSON.stringify({
           marketing_spend: Number(simMarketingSpend),
           employee_count: Number(simEmployeeCount),
+          attempt_fundraising: attemptFundraising,
         }),
       }
     )
@@ -292,6 +305,12 @@ function App() {
                     <td>{(result.recall * 100).toFixed(1)}%</td>
                   </tr>
                 ))}
+                <tr>
+                  <td>fundraising (logistic)</td>
+                  <td>{(modelMetrics.fundraising_model.accuracy * 100).toFixed(1)}%</td>
+                  <td>{(modelMetrics.fundraising_model.precision * 100).toFixed(1)}%</td>
+                  <td>{(modelMetrics.fundraising_model.recall * 100).toFixed(1)}%</td>
+                </tr>
               </tbody>
             </table>
             <p className="card-sub metrics-footnote">
@@ -358,6 +377,10 @@ function App() {
               <input className="field" type="number" value={simMarketingSpend} onChange={(e) => setSimMarketingSpend(e.target.value)} placeholder="Marketing spend" />
               <input className="field" type="number" value={simEmployeeCount} onChange={(e) => setSimEmployeeCount(e.target.value)} placeholder="Employee count" />
             </div>
+            <label className="checkbox-row">
+              <input type="checkbox" checked={attemptFundraising} onChange={(e) => setAttemptFundraising(e.target.checked)} />
+              Attempt to raise a funding round this month
+            </label>
             <button className="btn btn-primary" type="submit" disabled={simulating}>
               {simulating && <span className="spinner" />}
               Simulate Next Month
@@ -373,6 +396,15 @@ function App() {
                 {simResult.market_condition === 'recessionary' && '📉'}
                 {' '}Market: {simResult.market_condition} ({simResult.market_multiplier}x growth)
               </div>
+
+              {simResult.fundraising_result && (
+                <div className={`fundraising-badge ${simResult.fundraising_result.raised ? 'fundraising-success' : 'fundraising-fail'}`}>
+                  {simResult.fundraising_result.raised
+                    ? `💰 Raised $${simResult.fundraising_result.amount_raised.toLocaleString()} (${(simResult.fundraising_result.success_probability * 100).toFixed(0)}% model confidence)`
+                    : `❌ Fundraising attempt failed (${(simResult.fundraising_result.success_probability * 100).toFixed(0)}% model confidence)`}
+                </div>
+              )}
+
               <div className="result-stats">
                 <div>
                   <div className="stat-label">Revenue</div>

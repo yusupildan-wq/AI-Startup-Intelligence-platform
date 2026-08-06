@@ -8,12 +8,13 @@ from pydantic import BaseModel
 from state_store import insert_startup, get_startup, get_all_snapshots, insert_user, get_user_by_email
 from orchestrator import run_month
 from auth import create_token, verify_token
-from prediction_engine import benchmark_churn_models, train_growth_model
+from prediction_engine import benchmark_churn_models, train_growth_model, train_fundraising_model
 
 app = FastAPI()
 
 _churn_model_benchmark = benchmark_churn_models()
 _, _growth_model_metrics = train_growth_model()
+_, _fundraising_model_metrics = train_fundraising_model()
 
 app.add_middleware(
     CORSMiddleware,
@@ -45,6 +46,7 @@ class CreateStartupRequest(BaseModel):
 class SimulateMonthRequest(BaseModel):
     marketing_spend: float
     employee_count: int
+    attempt_fundraising: bool = False
 
 
 @app.get("/health")
@@ -57,6 +59,7 @@ def model_metrics():
     return {
         "churn_model_comparison": _churn_model_benchmark,
         "growth_model": _growth_model_metrics,
+        "fundraising_model": _fundraising_model_metrics,
     }
 
 
@@ -132,4 +135,5 @@ def simulate_next_month(startup_id: int, request: SimulateMonthRequest, user_id:
         startup_id=startup_id,
         marketing_spend=request.marketing_spend,
         employee_count=request.employee_count,
+        attempt_fundraising=request.attempt_fundraising,
     )

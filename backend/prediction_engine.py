@@ -119,6 +119,44 @@ def predict_new_customers(model, marketing_spend, price, existing_customers):
     return max(0, round(prediction))
 
 
+def generate_fundraising_training_data(n=200, seed=99):
+    rng = np.random.default_rng(seed)
+    growth_rate = rng.uniform(-0.2, 0.5, n)
+    runway_months = rng.uniform(0, 24, n)
+    revenue = rng.uniform(0, 50000, n)
+
+    # Investors reward growth most, then runway (survivability), then absolute revenue.
+    linear_score = 8 * growth_rate + 0.15 * runway_months + 0.00005 * revenue - 2.5
+    success_probability = 1 / (1 + np.exp(-linear_score))
+    raised = rng.binomial(1, success_probability)
+
+    features = np.column_stack([growth_rate, runway_months, revenue])
+    return features, raised
+
+
+def train_fundraising_model():
+    features, labels = generate_fundraising_training_data()
+    X_train, X_test, y_train, y_test = train_test_split(
+        features, labels, test_size=0.2, random_state=99
+    )
+
+    model = LogisticRegression()
+    model.fit(X_train, y_train)
+
+    predictions = model.predict(X_test)
+    metrics = {
+        "accuracy": accuracy_score(y_test, predictions),
+        "precision": precision_score(y_test, predictions, zero_division=0),
+        "recall": recall_score(y_test, predictions, zero_division=0),
+    }
+    return model, metrics
+
+
+def predict_fundraising_success(model, growth_rate, runway_months, revenue):
+    features = np.array([[growth_rate, runway_months, revenue]])
+    return model.predict_proba(features)[0][1]
+
+
 if __name__ == "__main__":
     model, metrics = train_churn_model()
     print("Test set metrics:", metrics)
