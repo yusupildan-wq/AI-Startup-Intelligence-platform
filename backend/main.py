@@ -1,11 +1,11 @@
 import bcrypt
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from state_store import insert_startup, get_startup, get_all_snapshots, insert_user, get_user_by_email
 from orchestrator import run_month
-from auth import create_token
+from auth import create_token, verify_token
 
 app = FastAPI()
 
@@ -70,7 +70,7 @@ def login(request: LoginRequest):
 
 
 @app.post("/startups")
-def create_startup(request: CreateStartupRequest):
+def create_startup(request: CreateStartupRequest, user_id: int = Depends(verify_token)):
     startup_id = insert_startup(
         request.name,
         request.business_type,
@@ -78,22 +78,29 @@ def create_startup(request: CreateStartupRequest):
         request.founder_count,
         request.initial_funding,
         request.initial_customer_count,
+        user_id=user_id,
     )
     return {"startup_id": startup_id}
 
 
-@app.get("/startups/{startup_id}/snapshots")
-def list_snapshots(startup_id: int):
-    if get_startup(startup_id) is None:
+def get_owned_startup_or_403(startup_id, user_id):
+    startup = get_startup(startup_id)
+    if startup is None:
         raise HTTPException(status_code=404, detail="Startup not found")
+    if startup["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Not your startup")
+    return startup
 
+
+@app.get("/startups/{startup_id}/snapshots")
+def list_snapshots(startup_id: int, user_id: int = Depends(verify_token)):
+    get_owned_startup_or_403(startup_id, user_id)
     return get_all_snapshots(startup_id)
 
 
 @app.post("/startups/{startup_id}/simulate-next-month")
-def simulate_next_month(startup_id: int, request: SimulateMonthRequest):
-    if get_startup(startup_id) is None:
-        raise HTTPException(status_code=404, detail="Startup not found")
+def simulate_next_month(startup_id: int, request: SimulateMonthRequest, user_id: int = Depends(verify_token)):
+    get_owned_startup_or_403(startup_id, user_id)
 
     return run_month(
         startup_id=startup_id,

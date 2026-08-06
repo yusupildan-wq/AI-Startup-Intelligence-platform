@@ -37,16 +37,16 @@ def get_user_by_email(email):
     return dict(row) if row else None
 
 
-def insert_startup(name, business_type, initial_price, founder_count, initial_funding, initial_customer_count=0):
+def insert_startup(name, business_type, initial_price, founder_count, initial_funding, initial_customer_count=0, user_id=None):
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO startups (name, business_type, initial_price, founder_count, initial_funding, initial_customer_count)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO startups (name, business_type, initial_price, founder_count, initial_funding, initial_customer_count, user_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
-                (name, business_type, initial_price, founder_count, initial_funding, initial_customer_count),
+                (name, business_type, initial_price, founder_count, initial_funding, initial_customer_count, user_id),
             )
             startup_id = cur.fetchone()[0]
         conn.commit()
