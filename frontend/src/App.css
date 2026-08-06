@@ -238,6 +238,38 @@
   animation: fade-up 0.4s var(--ease);
 }
 
+.market-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  margin-bottom: 16px;
+  text-transform: capitalize;
+}
+
+.market-booming {
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--success);
+}
+
+.market-favorable {
+  background: var(--accent-glow);
+  color: var(--accent);
+}
+
+.market-cooling {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.market-recessionary {
+  background: rgba(255, 107, 107, 0.15);
+  color: var(--danger);
+}
+
 .result-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

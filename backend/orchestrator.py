@@ -2,6 +2,7 @@ from prediction_engine import train_churn_model, predict_churn_probability, trai
 from calculation_engine import compute_monthly_snapshot
 from state_store import get_latest_snapshot, insert_monthly_snapshot, get_startup
 from narration_layer import generate_narration
+from market import get_market_multiplier, get_market_label
 
 _churn_model, _ = train_churn_model()
 _growth_model, _ = train_growth_model()
@@ -26,9 +27,13 @@ def run_month(startup_id, marketing_spend, employee_count, avg_days_since_login=
     )
     customers_churned = round(previous["customer_count"] * churn_probability)
 
-    customers_acquired = predict_new_customers(
+    market_multiplier = get_market_multiplier()
+    market_label = get_market_label(market_multiplier)
+
+    base_new_customers = predict_new_customers(
         _growth_model, marketing_spend, float(previous["price_per_customer"]), previous["customer_count"]
     )
+    customers_acquired = round(base_new_customers * market_multiplier)
 
     new_customer_count = previous["customer_count"] - customers_churned + customers_acquired
 
@@ -65,7 +70,15 @@ def run_month(startup_id, marketing_spend, employee_count, avg_days_since_login=
         "cash_on_hand": computed["cash_on_hand"],
         "marketing_spend": computed["marketing_spend"],
         "employee_count": computed["employee_count"],
+        "market_condition": market_label,
     }
     narration = generate_narration(narration_input)
 
-    return {**computed, "customers_churned": customers_churned, "customers_acquired": customers_acquired, "narration": narration}
+    return {
+        **computed,
+        "customers_churned": customers_churned,
+        "customers_acquired": customers_acquired,
+        "market_condition": market_label,
+        "market_multiplier": market_multiplier,
+        "narration": narration,
+    }

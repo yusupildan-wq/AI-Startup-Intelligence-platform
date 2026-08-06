@@ -26,6 +26,8 @@ interface SimulationResult {
   marketing_spend: number
   customers_churned: number
   customers_acquired: number
+  market_condition: string
+  market_multiplier: number
   narration: string
 }
 
@@ -364,6 +366,13 @@ function App() {
 
           {simResult && (
             <div className="result-box">
+              <div className={`market-badge market-${simResult.market_condition}`}>
+                {simResult.market_condition === 'booming' && '📈'}
+                {simResult.market_condition === 'favorable' && '🙂'}
+                {simResult.market_condition === 'cooling' && '🌥️'}
+                {simResult.market_condition === 'recessionary' && '📉'}
+                {' '}Market: {simResult.market_condition} ({simResult.market_multiplier}x growth)
+              </div>
               <div className="result-stats">
                 <div>
                   <div className="stat-label">Revenue</div>

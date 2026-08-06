@@ -16,7 +16,8 @@ New customers acquired this month: {snapshot['customers_acquired']}
 Customers churned this month: {snapshot['customers_churned']}
 Cash on hand: ${snapshot['cash_on_hand']}
 Marketing spend: ${snapshot['marketing_spend']}
-Employees: {snapshot['employee_count']}"""
+Employees: {snapshot['employee_count']}
+Overall market conditions this month: {snapshot['market_condition']}"""
 
     response = client.chat.completions.create(
         model="gpt-4o-mini",
