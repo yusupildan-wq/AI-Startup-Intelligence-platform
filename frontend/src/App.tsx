@@ -1,4 +1,6 @@
-import { useState, type SubmitEvent } from 'react'
+import { useEffect, useState, type SubmitEvent } from 'react'
+import Lenis from 'lenis'
+import './App.css'
 
 interface SimulationResult {
   revenue: number
@@ -23,6 +25,10 @@ interface Snapshot {
 }
 
 function App() {
+  const [theme, setTheme] = useState<'dark' | 'light'>(
+    (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
+  )
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
@@ -40,6 +46,21 @@ function App() {
   const [simEmployeeCount, setSimEmployeeCount] = useState('')
   const [simResult, setSimResult] = useState<SimulationResult | null>(null)
   const [history, setHistory] = useState<Snapshot[]>([])
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
+  useEffect(() => {
+    const lenis = new Lenis({ duration: 1.1, easing: (t) => 1 - Math.pow(1 - t, 3) })
+    function raf(time: number) {
+      lenis.raf(time)
+      requestAnimationFrame(raf)
+    }
+    requestAnimationFrame(raf)
+    return () => lenis.destroy()
+  }, [])
 
   async function loginWithCredentials() {
     const response = await fetch('http://127.0.0.1:8000/login', {
@@ -148,60 +169,107 @@ function App() {
     setHistory(data)
   }
 
+  const themeToggle = (
+    <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+      {theme === 'dark' ? '☀ Light' : '☾ Dark'}
+    </button>
+  )
+
   if (!token) {
     return (
-      <div>
+      <div className="auth-screen">
+        {themeToggle}
         <h1>AI Startup Intelligence Platform</h1>
-        <form onSubmit={handleLogin}>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
-          <button type="submit">Log In</button>
-          <button type="button" onClick={handleRegister}>Register</button>
-        </form>
-        <button type="button" onClick={handleGuestLogin}>Try as Guest</button>
-        {authError && <p>{authError}</p>}
+        <div className="card" style={{ width: 340 }}>
+          <form onSubmit={handleLogin}>
+            <div className="field-stack">
+              <input className="field" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
+              <input className="field" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
+            </div>
+            <div className="btn-row">
+              <button className="btn btn-primary" type="submit">Log In</button>
+              <button className="btn btn-secondary" type="button" onClick={handleRegister}>Register</button>
+            </div>
+          </form>
+          <button className="btn-ghost" type="button" onClick={handleGuestLogin}>Try as Guest →</button>
+          {authError && <p className="error-text">{authError}</p>}
+        </div>
       </div>
     )
   }
 
   return (
-    <div>
-      <h1>AI Startup Intelligence Platform</h1>
-      <button onClick={handleLogout}>Log Out</button>
-      <form onSubmit={handleSubmit}>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Startup name" />
-        <input type="text" value={businessType} onChange={(e) => setBusinessType(e.target.value)} placeholder="Business type" />
-        <input type="number" value={initialPrice} onChange={(e) => setInitialPrice(e.target.value)} placeholder="Initial price" />
-        <input type="number" value={founderCount} onChange={(e) => setFounderCount(e.target.value)} placeholder="Founder count" />
-        <input type="number" value={initialFunding} onChange={(e) => setInitialFunding(e.target.value)} placeholder="Initial funding" />
-        <input type="number" value={initialCustomerCount} onChange={(e) => setInitialCustomerCount(e.target.value)} placeholder="Initial customer count" />
-        <button type="submit">Create Startup</button>
-      </form>
-      {createdStartupId && <p>Created startup with id {createdStartupId}</p>}
+    <div className="app">
+      <div className="topbar">
+        <h1>AI Startup Intelligence Platform</h1>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {themeToggle}
+          <button className="theme-toggle" onClick={handleLogout}>Log Out</button>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>Create a Startup</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="field-grid">
+            <input className="field" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Startup name" />
+            <input className="field" type="text" value={businessType} onChange={(e) => setBusinessType(e.target.value)} placeholder="Business type" />
+            <input className="field" type="number" value={initialPrice} onChange={(e) => setInitialPrice(e.target.value)} placeholder="Initial price" />
+            <input className="field" type="number" value={founderCount} onChange={(e) => setFounderCount(e.target.value)} placeholder="Founder count" />
+            <input className="field" type="number" value={initialFunding} onChange={(e) => setInitialFunding(e.target.value)} placeholder="Initial funding" />
+            <input className="field" type="number" value={initialCustomerCount} onChange={(e) => setInitialCustomerCount(e.target.value)} placeholder="Initial customers" />
+          </div>
+          <button className="btn btn-primary" type="submit">Create Startup</button>
+        </form>
+        {createdStartupId && <div className="badge">✓ Created startup #{createdStartupId}</div>}
+      </div>
 
       {createdStartupId && (
-        <div>
+        <div className="card">
           <h2>Simulate Next Month</h2>
           <form onSubmit={handleSimulate}>
-            <input type="number" value={simMarketingSpend} onChange={(e) => setSimMarketingSpend(e.target.value)} placeholder="Marketing spend" />
-            <input type="number" value={simEmployeeCount} onChange={(e) => setSimEmployeeCount(e.target.value)} placeholder="Employee count" />
-            <button type="submit">Simulate Next Month</button>
+            <div className="field-grid">
+              <input className="field" type="number" value={simMarketingSpend} onChange={(e) => setSimMarketingSpend(e.target.value)} placeholder="Marketing spend" />
+              <input className="field" type="number" value={simEmployeeCount} onChange={(e) => setSimEmployeeCount(e.target.value)} placeholder="Employee count" />
+            </div>
+            <button className="btn btn-primary" type="submit">Simulate Next Month</button>
           </form>
 
           {simResult && (
-            <div>
-              <p>Revenue: {simResult.revenue}</p>
-              <p>Cash on hand: {simResult.cash_on_hand}</p>
-              <p>Customers: {simResult.customer_count}</p>
-              <p>{simResult.narration}</p>
+            <div className="result-box">
+              <div className="result-stats">
+                <div>
+                  <div className="stat-label">Revenue</div>
+                  <div className="stat-value">${simResult.revenue.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="stat-label">Cash on Hand</div>
+                  <div className="stat-value">${simResult.cash_on_hand.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="stat-label">Customers</div>
+                  <div className="stat-value">{simResult.customer_count}</div>
+                </div>
+              </div>
+              <p className="narration">{simResult.narration}</p>
             </div>
           )}
+        </div>
+      )}
 
-          <button onClick={handleViewHistory}>View History</button>
-          <ul>
+      {createdStartupId && (
+        <div className="card">
+          <h2>History</h2>
+          <button className="btn btn-secondary" onClick={handleViewHistory} style={{ marginBottom: 16 }}>
+            Refresh History
+          </button>
+          <ul className="history-list">
             {history.map((snapshot) => (
-              <li key={snapshot.id}>
-                Month {snapshot.month_number}: Revenue ${snapshot.revenue}, Cash ${snapshot.cash_on_hand}, Customers {snapshot.customer_count}
+              <li className="history-row" key={snapshot.id}>
+                <span className="history-month">Month {snapshot.month_number}</span>
+                <span>${snapshot.revenue.toLocaleString()} revenue</span>
+                <span>${snapshot.cash_on_hand.toLocaleString()} cash</span>
+                <span>{snapshot.customer_count} customers</span>
               </li>
             ))}
           </ul>
