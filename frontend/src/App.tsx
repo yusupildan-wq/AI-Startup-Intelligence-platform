@@ -81,6 +81,15 @@ function App() {
     await loginWithCredentials()
   }
 
+  async function handleGuestLogin() {
+    setAuthError('')
+
+    const response = await fetch('http://127.0.0.1:8000/guest-login', { method: 'POST' })
+    const data = await response.json()
+    localStorage.setItem('token', data.access_token)
+    setToken(data.access_token)
+  }
+
   function handleLogout() {
     localStorage.removeItem('token')
     setToken(null)
@@ -149,6 +158,7 @@ function App() {
           <button type="submit">Log In</button>
           <button type="button" onClick={handleRegister}>Register</button>
         </form>
+        <button type="button" onClick={handleGuestLogin}>Try as Guest</button>
         {authError && <p>{authError}</p>}
       </div>
     )

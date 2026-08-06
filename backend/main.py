@@ -1,3 +1,5 @@
+import secrets
+
 import bcrypt
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -66,6 +68,18 @@ def login(request: LoginRequest):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     token = create_token(user["id"])
+    return {"access_token": token}
+
+
+@app.post("/guest-login")
+def guest_login():
+    guest_email = f"guest_{secrets.token_hex(8)}@guest.local"
+    guest_password = secrets.token_hex(16)
+
+    password_hash = bcrypt.hashpw(guest_password.encode(), bcrypt.gensalt())
+    user_id = insert_user(guest_email, password_hash.decode())
+
+    token = create_token(user_id)
     return {"access_token": token}
 
 
