@@ -88,6 +88,31 @@ interface StrategyLabResult {
   top_strategies: Strategy[]
 }
 
+interface DigitalTwinResult {
+  forecast_horizon_months: number
+  observed_months: number
+  predictions: {
+    future_revenue: number
+    future_customer_count: number
+    future_cash_on_hand: number
+    revenue_growth: number
+    cash_exhaustion_probability: number
+  }
+  model: {
+    algorithm: string
+    feature_count: number
+    training_rows: number
+    data_source: string
+    metrics: Record<string, { mae: number; r2: number }>
+  }
+  data_coverage: {
+    observed_signals: number
+    total_signals: number
+    coverage_percent: number
+    warning: string
+  }
+}
+
 function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(
     (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
@@ -122,6 +147,9 @@ function App() {
   const [strategyResult, setStrategyResult] = useState<StrategyLabResult | null>(null)
   const [analyzingStrategies, setAnalyzingStrategies] = useState(false)
   const [strategyError, setStrategyError] = useState('')
+  const [digitalTwin, setDigitalTwin] = useState<DigitalTwinResult | null>(null)
+  const [loadingTwin, setLoadingTwin] = useState(false)
+  const [twinError, setTwinError] = useState('')
 
   useEffect(() => {
     fetch(`${API_URL}/model-metrics`)
@@ -304,6 +332,25 @@ function App() {
     }
   }
 
+  async function handleRunDigitalTwin() {
+    setLoadingTwin(true)
+    setTwinError('')
+    try {
+      const response = await fetch(`${API_URL}/startups/${createdStartupId}/digital-twin`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!response.ok) {
+        const body = await response.json().catch(() => null)
+        throw new Error(body?.detail || `Digital Twin failed (${response.status})`)
+      }
+      setDigitalTwin(await response.json())
+    } catch (error) {
+      setTwinError(error instanceof Error ? error.message : 'Digital Twin failed')
+    } finally {
+      setLoadingTwin(false)
+    }
+  }
+
   function buildFeatureImportanceData(comparison: Record<string, ChurnModelResult>) {
     const featureNames = Object.keys(Object.values(comparison)[0]?.feature_importance ?? {})
     return featureNames.map((feature) => {
@@ -435,6 +482,43 @@ function App() {
         </form>
         {createdStartupId && <div className="badge">✓ Created startup #{createdStartupId}</div>}
       </div>
+
+      {createdStartupId && (
+        <div className="card twin-card">
+          <div className="section-heading">
+            <div>
+              <h2>Startup Digital Twin</h2>
+              <p className="card-sub">One model forecasts the connected financial and customer state three months ahead.</p>
+            </div>
+            <button className="btn btn-secondary strategy-button" onClick={handleRunDigitalTwin} disabled={loadingTwin}>
+              {loadingTwin && <span className="spinner" />}
+              Run Digital Twin
+            </button>
+          </div>
+          {twinError && <p className="error-text">{twinError}</p>}
+          {digitalTwin && (
+            <div className="twin-results">
+              <div className="twin-stats">
+                <div><span>Revenue in 3 months</span><strong>${digitalTwin.predictions.future_revenue.toLocaleString()}</strong></div>
+                <div><span>Cash in 3 months</span><strong>${digitalTwin.predictions.future_cash_on_hand.toLocaleString()}</strong></div>
+                <div><span>Customers in 3 months</span><strong>{digitalTwin.predictions.future_customer_count.toLocaleString()}</strong></div>
+                <div><span>Cash-exhaustion risk</span><strong>{(digitalTwin.predictions.cash_exhaustion_probability * 100).toFixed(1)}%</strong></div>
+              </div>
+              <div className="model-provenance">
+                <span>{digitalTwin.model.algorithm}</span>
+                <span>{digitalTwin.model.feature_count.toLocaleString()} features</span>
+                <span>{digitalTwin.model.training_rows.toLocaleString()} training examples</span>
+                <span>{digitalTwin.observed_months} observed month(s)</span>
+              </div>
+              <div className="coverage-row">
+                <div><i style={{ width: `${digitalTwin.data_coverage.coverage_percent}%` }} /></div>
+                <span>Live data coverage: {digitalTwin.data_coverage.observed_signals}/{digitalTwin.data_coverage.total_signals} signals ({digitalTwin.data_coverage.coverage_percent}%)</span>
+              </div>
+              <p className="uncertainty-note">{digitalTwin.data_coverage.warning} Training source: {digitalTwin.model.data_source.replace(/_/g, ' ')}.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {createdStartupId && (
         <div className="card strategy-card">

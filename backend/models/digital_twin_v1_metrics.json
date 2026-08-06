@@ -1,0 +1,29 @@
+{
+  "future_revenue": {
+    "mae": 119761.2029,
+    "r2": 0.8955
+  },
+  "future_customer_count": {
+    "mae": 591.0481,
+    "r2": 0.9254
+  },
+  "future_cash_on_hand": {
+    "mae": 746692.8216,
+    "r2": 0.85
+  },
+  "revenue_growth": {
+    "mae": 0.1415,
+    "r2": 0.4685
+  },
+  "cash_exhausted": {
+    "mae": 0.0055,
+    "r2": 0.2055
+  },
+  "training_companies": 128,
+  "held_out_companies": 32,
+  "training_rows": 2048,
+  "test_rows": 512,
+  "feature_count": 2064,
+  "forecast_horizon_months": 3,
+  "data_source": "synthetic_startup_population_v1"
+}

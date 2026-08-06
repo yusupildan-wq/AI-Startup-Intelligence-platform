@@ -13,6 +13,7 @@ from prediction_engine import benchmark_churn_models, train_growth_model, train_
 from prediction_engine import train_churn_model
 from strategy_engine import analyze_strategies
 from state_store import get_latest_snapshot
+from ml.digital_twin import predict_digital_twin
 
 app = FastAPI()
 
@@ -136,6 +137,44 @@ def get_owned_startup_or_403(startup_id, user_id):
 def list_snapshots(startup_id: int, user_id: int = Depends(verify_token)):
     get_owned_startup_or_403(startup_id, user_id)
     return get_all_snapshots(startup_id)
+
+
+@app.get("/startups/{startup_id}/digital-twin")
+def digital_twin_forecast(startup_id: int, user_id: int = Depends(verify_token)):
+    startup = get_owned_startup_or_403(startup_id, user_id)
+    snapshots = get_all_snapshots(startup_id)
+    if not snapshots:
+        snapshots = [{
+            "revenue": startup["initial_customer_count"] * float(startup["initial_price"]),
+            "cash_on_hand": startup["initial_funding"],
+            "customer_count": startup["initial_customer_count"],
+            "customers_acquired": 0, "customers_churned": 0,
+            "employee_count": max(1, startup["founder_count"]),
+            "marketing_spend": 0, "funding_raised_to_date": startup["initial_funding"],
+        }]
+    history = []
+    for snapshot in snapshots:
+        revenue = float(snapshot["revenue"])
+        customers = int(snapshot["customer_count"])
+        employees = int(snapshot["employee_count"])
+        history.append({
+            "revenue": revenue, "mrr": revenue, "arr": revenue * 12,
+            "cash_on_hand": float(snapshot["cash_on_hand"]), "customer_count": customers,
+            "new_customers": int(snapshot.get("customers_acquired", 0)),
+            "churned_customers": int(snapshot.get("customers_churned", 0)),
+            "employee_count": employees, "marketing_spend": float(snapshot["marketing_spend"]),
+            "capital_raised": float(snapshot.get("funding_raised_to_date", 0)),
+            "payroll_cost": employees * 6000,
+        })
+    result = predict_digital_twin(history)
+    result["observed_months"] = len(history)
+    result["data_coverage"] = {
+        "observed_signals": 11,
+        "total_signals": 85,
+        "coverage_percent": round(11 / 85 * 100, 1),
+        "warning": "Early synthetic model with limited live inputs; not financial advice.",
+    }
+    return result
 
 
 @app.post("/startups/{startup_id}/simulate-next-month")
