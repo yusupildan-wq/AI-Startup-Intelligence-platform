@@ -23,6 +23,11 @@ interface Snapshot {
 }
 
 function App() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'))
+  const [authError, setAuthError] = useState('')
+
   const [name, setName] = useState('')
   const [businessType, setBusinessType] = useState('')
   const [initialPrice, setInitialPrice] = useState('')
@@ -36,12 +41,60 @@ function App() {
   const [simResult, setSimResult] = useState<SimulationResult | null>(null)
   const [history, setHistory] = useState<Snapshot[]>([])
 
+  async function loginWithCredentials() {
+    const response = await fetch('http://127.0.0.1:8000/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+
+    if (!response.ok) {
+      setAuthError('Login failed')
+      return
+    }
+
+    const data = await response.json()
+    localStorage.setItem('token', data.access_token)
+    setToken(data.access_token)
+  }
+
+  async function handleLogin(e: SubmitEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setAuthError('')
+    await loginWithCredentials()
+  }
+
+  async function handleRegister() {
+    setAuthError('')
+
+    const response = await fetch('http://127.0.0.1:8000/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+
+    if (!response.ok) {
+      setAuthError('Registration failed')
+      return
+    }
+
+    await loginWithCredentials()
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('token')
+    setToken(null)
+  }
+
   async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
 
     const response = await fetch('http://127.0.0.1:8000/startups', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({
         name,
         business_type: businessType,
@@ -63,7 +116,10 @@ function App() {
       `http://127.0.0.1:8000/startups/${createdStartupId}/simulate-next-month`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           marketing_spend: Number(simMarketingSpend),
           employee_count: Number(simEmployeeCount),
@@ -76,14 +132,32 @@ function App() {
   }
 
   async function handleViewHistory() {
-    const response = await fetch(`http://127.0.0.1:8000/startups/${createdStartupId}/snapshots`)
+    const response = await fetch(`http://127.0.0.1:8000/startups/${createdStartupId}/snapshots`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
     const data = await response.json()
     setHistory(data)
+  }
+
+  if (!token) {
+    return (
+      <div>
+        <h1>AI Startup Intelligence Platform</h1>
+        <form onSubmit={handleLogin}>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
+          <button type="submit">Log In</button>
+          <button type="button" onClick={handleRegister}>Register</button>
+        </form>
+        {authError && <p>{authError}</p>}
+      </div>
+    )
   }
 
   return (
     <div>
       <h1>AI Startup Intelligence Platform</h1>
+      <button onClick={handleLogout}>Log Out</button>
       <form onSubmit={handleSubmit}>
         <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Startup name" />
         <input type="text" value={businessType} onChange={(e) => setBusinessType(e.target.value)} placeholder="Business type" />
