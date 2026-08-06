@@ -1,25 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
   --bg: #0a0a0e;
   --bg-elevated: #131318;
+  --bg-elevated-2: #1a1a21;
   --border: #24242c;
+  --border-soft: #1c1c23;
   --text: #f2f2f5;
   --text-muted: #9797a3;
   --accent: #6e7bff;
-  --accent-hover: #8791ff;
+  --accent-hover: #7e89ff;
+  --accent-glow: rgba(110, 123, 255, 0.35);
   --danger: #ff6b6b;
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --success: #4ade80;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 8px 30px rgba(0, 0, 0, 0.35);
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
   color-scheme: dark;
 }
 
 :root[data-theme='light'] {
-  --bg: #fafafc;
+  --bg: #f6f6f9;
   --bg-elevated: #ffffff;
+  --bg-elevated-2: #f0f0f4;
   --border: #e4e4ea;
+  --border-soft: #ececf1;
   --text: #14141a;
   --text-muted: #6b6b76;
   --accent: #4c58e0;
   --accent-hover: #3944c9;
+  --accent-glow: rgba(76, 88, 224, 0.18);
   --danger: #d64545;
+  --success: #16a34a;
+  --shadow-sm: 0 2px 8px rgba(20, 20, 26, 0.06);
+  --shadow-md: 0 12px 30px rgba(20, 20, 26, 0.08);
   color-scheme: light;
 }
 
@@ -35,10 +50,14 @@ body {
   color: var(--text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: background-color 0.3s var(--ease), color 0.3s var(--ease);
+  background-image: radial-gradient(circle at 50% -10%, var(--accent-glow), transparent 45%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
 }
 
 #root {
@@ -58,10 +77,31 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 input {
   font-family: inherit;
 }
 
 a {
   color: var(--accent);
+}
+
+::selection {
+  background: var(--accent);
+  color: #fff;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
