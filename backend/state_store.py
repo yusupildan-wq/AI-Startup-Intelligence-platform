@@ -41,6 +41,21 @@ def get_startup(startup_id):
     return dict(row) if row else None
 
 
+def get_all_snapshots(startup_id):
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT * FROM monthly_snapshots
+                WHERE startup_id = %s
+                ORDER BY month_number ASC
+                """,
+                (startup_id,),
+            )
+            rows = cur.fetchall()
+    return [dict(row) for row in rows]
+
+
 def insert_monthly_snapshot(
     startup_id,
     month_number,

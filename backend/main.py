@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from state_store import insert_startup, get_startup
+from state_store import insert_startup, get_startup, get_all_snapshots
 from orchestrator import run_month
 
 app = FastAPI()
@@ -45,6 +45,14 @@ def create_startup(request: CreateStartupRequest):
         request.initial_customer_count,
     )
     return {"startup_id": startup_id}
+
+
+@app.get("/startups/{startup_id}/snapshots")
+def list_snapshots(startup_id: int):
+    if get_startup(startup_id) is None:
+        raise HTTPException(status_code=404, detail="Startup not found")
+
+    return get_all_snapshots(startup_id)
 
 
 @app.post("/startups/{startup_id}/simulate-next-month")

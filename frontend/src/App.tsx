@@ -13,6 +13,15 @@ interface SimulationResult {
   narration: string
 }
 
+interface Snapshot {
+  id: number
+  month_number: number
+  revenue: number
+  cash_on_hand: number
+  customer_count: number
+  customers_churned: number
+}
+
 function App() {
   const [name, setName] = useState('')
   const [businessType, setBusinessType] = useState('')
@@ -25,6 +34,7 @@ function App() {
   const [simMarketingSpend, setSimMarketingSpend] = useState('')
   const [simEmployeeCount, setSimEmployeeCount] = useState('')
   const [simResult, setSimResult] = useState<SimulationResult | null>(null)
+  const [history, setHistory] = useState<Snapshot[]>([])
 
   async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -65,6 +75,12 @@ function App() {
     setSimResult(data)
   }
 
+  async function handleViewHistory() {
+    const response = await fetch(`http://127.0.0.1:8000/startups/${createdStartupId}/snapshots`)
+    const data = await response.json()
+    setHistory(data)
+  }
+
   return (
     <div>
       <h1>AI Startup Intelligence Platform</h1>
@@ -96,6 +112,15 @@ function App() {
               <p>{simResult.narration}</p>
             </div>
           )}
+
+          <button onClick={handleViewHistory}>View History</button>
+          <ul>
+            {history.map((snapshot) => (
+              <li key={snapshot.id}>
+                Month {snapshot.month_number}: Revenue ${snapshot.revenue}, Cash ${snapshot.cash_on_hand}, Customers {snapshot.customer_count}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
