@@ -1,8 +1,9 @@
+import bcrypt
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from state_store import insert_startup, get_startup, get_all_snapshots
+from state_store import insert_startup, get_startup, get_all_snapshots, insert_user, get_user_by_email
 from orchestrator import run_month
 
 app = FastAPI()
@@ -13,6 +14,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
 
 
 class CreateStartupRequest(BaseModel):
@@ -32,6 +38,16 @@ class SimulateMonthRequest(BaseModel):
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.post("/register")
+def register(request: RegisterRequest):
+    if get_user_by_email(request.email) is not None:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    password_hash = bcrypt.hashpw(request.password.encode(), bcrypt.gensalt())
+    user_id = insert_user(request.email, password_hash.decode())
+    return {"user_id": user_id}
 
 
 @app.post("/startups")

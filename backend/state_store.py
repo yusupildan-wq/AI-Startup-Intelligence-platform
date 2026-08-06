@@ -14,6 +14,29 @@ def get_connection():
     return psycopg2.connect(**DB_CONFIG)
 
 
+def insert_user(email, password_hash):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO users (email, password_hash) VALUES (%s, %s) RETURNING id",
+                (email, password_hash),
+            )
+            user_id = cur.fetchone()[0]
+        conn.commit()
+    return user_id
+
+
+def get_user_by_email(email):
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT * FROM users WHERE email = %s",
+                (email,),
+            )
+            row = cur.fetchone()
+    return dict(row) if row else None
+
+
 def insert_startup(name, business_type, initial_price, founder_count, initial_funding, initial_customer_count=0):
     with get_connection() as conn:
         with conn.cursor() as cur:

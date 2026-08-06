@@ -1,5 +1,13 @@
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT now()
+);
+
 CREATE TABLE startups (
     id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
     name TEXT NOT NULL,
     business_type TEXT NOT NULL,
     initial_price NUMERIC(10,2) NOT NULL,
