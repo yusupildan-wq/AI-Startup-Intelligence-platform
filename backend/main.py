@@ -13,8 +13,8 @@ from prediction_engine import benchmark_churn_models, train_growth_model, train_
 from prediction_engine import train_churn_model
 from strategy_engine import analyze_strategies
 from state_store import get_latest_snapshot
-from ml.digital_twin import predict_digital_twin
-from ml.ai_ceo import recommend_action, state_from_startup
+from ml.digital_twin import load_digital_twin, predict_digital_twin
+from ml.ai_ceo import load_ai_ceo, recommend_action, state_from_startup
 
 app = FastAPI()
 
@@ -73,6 +73,8 @@ def model_metrics():
         "churn_model_comparison": _churn_model_benchmark,
         "growth_model": _growth_model_metrics,
         "fundraising_model": _fundraising_model_metrics,
+        "digital_twin": load_digital_twin()["metrics"],
+        "ai_ceo": load_ai_ceo()["metrics"],
     }
 
 

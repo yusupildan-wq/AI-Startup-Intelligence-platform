@@ -430,6 +430,19 @@
   font-size: 12.5px;
 }
 
+.ml-system-list { display: flex; flex-direction: column; gap: 12px; }
+.ml-system { padding: 16px; border: 1px solid var(--border-soft); border-radius: 12px; background: var(--bg); }
+.ml-system-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.ml-system-head span { color: var(--success); font-size: 9px; font-weight: 700; letter-spacing: .06em; }
+.ml-system p { color: var(--text-muted); font-size: 12.5px; line-height: 1.5; }
+.ml-facts, .metric-strip { display: flex; flex-wrap: wrap; gap: 7px; }
+.ml-facts span, .metric-strip span { padding: 5px 8px; border-radius: 7px; background: var(--bg-elevated); color: var(--text-muted); font-size: 10.5px; }
+.metric-strip { margin-top: 7px; }
+.metric-strip b { color: var(--text); }
+.data-honesty { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; padding: 12px; background: rgba(245, 158, 11, .1); border-radius: 9px; color: #f59e0b; font-size: 11px; line-height: 1.45; }
+.legacy-models { margin-top: 12px; color: var(--text-muted); font-size: 11px; }
+.legacy-models summary { cursor: pointer; }
+
 .badge {
   display: inline-flex;
   align-items: center;

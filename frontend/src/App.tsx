@@ -1,8 +1,6 @@
 import { useEffect, useState, type SubmitEvent } from 'react'
 import Lenis from 'lenis'
 import {
-  Bar,
-  BarChart,
   CartesianGrid,
   Legend,
   Line,
@@ -64,6 +62,17 @@ interface ModelMetrics {
   churn_model_comparison: Record<string, ChurnModelResult>
   growth_model: { mae: number; r2: number }
   fundraising_model: { accuracy: number; precision: number; recall: number }
+  digital_twin: {
+    feature_count: number; training_rows: number; held_out_companies: number; data_source: string
+    future_revenue: { r2: number; mae: number }
+    future_customer_count: { r2: number; mae: number }
+    future_cash_on_hand: { r2: number; mae: number }
+  }
+  ai_ceo: {
+    algorithm: string; training_transitions: number; data_source: string
+    policy: { survival_rate: number; median_company_value: number }
+    random_baseline: { survival_rate: number; median_company_value: number }
+  }
 }
 
 interface Strategy {
@@ -412,18 +421,6 @@ function App() {
     }
   }
 
-  function buildFeatureImportanceData(comparison: Record<string, ChurnModelResult>) {
-    const featureNames = Object.keys(Object.values(comparison)[0]?.feature_importance ?? {})
-    return featureNames.map((feature) => {
-      const row: Record<string, string | number> = { feature }
-      for (const [modelName, result] of Object.entries(comparison)) {
-        const total = Object.values(result.feature_importance).reduce((sum, v) => sum + Math.abs(v), 0)
-        row[modelName] = total > 0 ? Math.abs(result.feature_importance[feature]) / total : 0
-      }
-      return row
-    })
-  }
-
   const themeToggle = (
     <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
       {theme === 'dark' ? '☀ Light' : '☾ Dark'}
@@ -460,55 +457,41 @@ function App() {
 
         {modelMetrics && (
           <div className="card metrics-card">
-            <h2>🧠 Live Model Benchmarks</h2>
-            <p className="card-sub">Real churn models, trained and evaluated on every server start</p>
-            <table className="metrics-table">
-              <thead>
-                <tr>
-                  <th>Model</th>
-                  <th>Accuracy</th>
-                  <th>Precision</th>
-                  <th>Recall</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(modelMetrics.churn_model_comparison).map(([name, result]) => (
-                  <tr key={name}>
-                    <td>{name.replace(/_/g, ' ')}</td>
-                    <td>{(result.accuracy * 100).toFixed(1)}%</td>
-                    <td>{(result.precision * 100).toFixed(1)}%</td>
-                    <td>{(result.recall * 100).toFixed(1)}%</td>
-                  </tr>
-                ))}
-                <tr>
-                  <td>fundraising (logistic)</td>
-                  <td>{(modelMetrics.fundraising_model.accuracy * 100).toFixed(1)}%</td>
-                  <td>{(modelMetrics.fundraising_model.precision * 100).toFixed(1)}%</td>
-                  <td>{(modelMetrics.fundraising_model.recall * 100).toFixed(1)}%</td>
-                </tr>
-              </tbody>
-            </table>
-            <p className="card-sub metrics-footnote">
-              Growth model (linear regression): R² {modelMetrics.growth_model.r2.toFixed(2)}, MAE{' '}
-              {modelMetrics.growth_model.mae.toFixed(1)} customers
-            </p>
-
-            <p className="chart-title">Feature importance by model</p>
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={buildFeatureImportanceData(modelMetrics.churn_model_comparison)}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
-                <XAxis dataKey="feature" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
-                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
-                <Tooltip
-                  contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
-                  formatter={(v) => `${(Number(v ?? 0) * 100).toFixed(1)}%`}
-                />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="logistic_regression" fill="#6e7bff" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="random_forest" fill="#4ade80" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="xgboost" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <h2>Machine Learning Systems</h2>
+            <p className="card-sub">The trained systems currently powering the startup simulator.</p>
+            <div className="ml-system-list">
+              <div className="ml-system">
+                <div className="ml-system-head"><strong>Startup Digital Twin</strong><span>ACTIVE · SYNTHETIC V1</span></div>
+                <p>Forecasts revenue, customers, cash, growth, and cash-exhaustion risk together.</p>
+                <div className="ml-facts">
+                  <span>{modelMetrics.digital_twin.feature_count.toLocaleString()} features</span>
+                  <span>{modelMetrics.digital_twin.training_rows.toLocaleString()} training states</span>
+                  <span>{modelMetrics.digital_twin.held_out_companies} held-out companies</span>
+                </div>
+                <div className="metric-strip">
+                  <span>Revenue R² <b>{modelMetrics.digital_twin.future_revenue.r2.toFixed(2)}</b></span>
+                  <span>Customers R² <b>{modelMetrics.digital_twin.future_customer_count.r2.toFixed(2)}</b></span>
+                  <span>Cash R² <b>{modelMetrics.digital_twin.future_cash_on_hand.r2.toFixed(2)}</b></span>
+                </div>
+              </div>
+              <div className="ml-system">
+                <div className="ml-system-head"><strong>AI CEO Policy</strong><span>ACTIVE · REINFORCEMENT LEARNING</span></div>
+                <p>Chooses and executes pricing, marketing, hiring, product, market, and funding actions.</p>
+                <div className="ml-facts">
+                  <span>{modelMetrics.ai_ceo.training_transitions.toLocaleString()} learned transitions</span>
+                  <span>{(modelMetrics.ai_ceo.policy.survival_rate * 100).toFixed(1)}% policy survival</span>
+                  <span>{(modelMetrics.ai_ceo.random_baseline.survival_rate * 100).toFixed(1)}% random baseline</span>
+                </div>
+              </div>
+            </div>
+            <div className="data-honesty">
+              <strong>Data status</strong>
+              <span>Both primary systems are trained in synthetic environments. These metrics measure performance inside those environments—not proven real-world accuracy.</span>
+            </div>
+            <details className="legacy-models">
+              <summary>Legacy baseline models</summary>
+              <p>Small synthetic churn, growth, and fundraising models remain in the monthly engine while their responsibilities are migrated into the Digital Twin.</p>
+            </details>
           </div>
         )}
       </div>
