@@ -20,6 +20,8 @@ from ml.economy_agents import load_economy_agents
 from ml.world_generator import generate_learned_world, load_world_generator
 from ml.trajectory_model import generate_trajectories, load_trajectory_model
 from ml.registry import model_registry
+from ml.causal_actions import estimate_action_effects
+from ml.model_based_ceo import plan_actions
 from world import WorldEngine, create_world
 from world.events import ACTION_TYPES, SHOCK_TYPES
 from world.store import (
@@ -98,6 +100,14 @@ class GenerateTrajectoriesRequest(BaseModel):
     horizon: int = 12
     paths: int = 150
     seed: int = 2028
+
+
+class ModelBasedPlanRequest(BaseModel):
+    horizon: int = 12
+    beam_width: int = 10
+    paths: int = 60
+    risk_aversion: float = 0.65
+    seed: int = 932
 
 
 class OfficialDataImportRequest(BaseModel):
@@ -420,6 +430,24 @@ def generate_world_trajectories(world_id: str, branch_id: str, request: Generate
         raise HTTPException(status_code=422, detail="Horizon must be 1-36 and paths 20-1000")
     engine = get_owned_world_engine(world_id, branch_id, user_id)
     return generate_trajectories(engine.state, request.action, request.horizon, request.paths, request.seed)
+
+
+@app.get("/worlds/{world_id}/branches/{branch_id}/causal-effects")
+def get_world_causal_effects(world_id: str, branch_id: str, user_id: int = Depends(verify_token)):
+    engine = get_owned_world_engine(world_id, branch_id, user_id)
+    return estimate_action_effects(engine.state)
+
+
+@app.post("/worlds/{world_id}/branches/{branch_id}/model-based-ceo")
+def get_model_based_ceo(world_id: str, branch_id: str, request: ModelBasedPlanRequest,
+                        user_id: int = Depends(verify_token)):
+    if not 2 <= request.horizon <= 24 or not 3 <= request.beam_width <= 30 or not 20 <= request.paths <= 200:
+        raise HTTPException(status_code=422, detail="Invalid planning horizon, beam width, or path count")
+    if not 0 <= request.risk_aversion <= 1:
+        raise HTTPException(status_code=422, detail="Risk aversion must be between 0 and 1")
+    engine = get_owned_world_engine(world_id, branch_id, user_id)
+    return plan_actions(engine.state, request.horizon, request.beam_width, request.paths,
+                        request.risk_aversion, request.seed)
 
 
 @app.get("/datasets")

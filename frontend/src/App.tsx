@@ -192,6 +192,24 @@ interface RegistryModel {
   limitations: string
 }
 
+interface CausalEffects {
+  effects: Array<{ action: string; effects_vs_hold: { cash: number; customers: number; revenue: number; product_quality: number } }>
+  model: { training_states: number; held_out_states: number; training_counterfactuals: number; outcomes: Record<string, { treatment_effect_mae_vs_hold: number }> }
+  limitations: string
+}
+
+interface ModelBasedPlan {
+  recommendation: PlannedAction
+  action_comparison: PlannedAction[]
+  search: { horizon: number; actions: number; beam_width_per_first_action: number; stochastic_paths_per_plan: number; risk_aversion: number }
+  limitations: string
+}
+
+interface PlannedAction {
+  rank: number; first_action: string; planned_sequence: string[]; risk_adjusted_score: number
+  survival_probability: number; cash_p10: number; cash_median: number; revenue_median: number; customers_median: number
+}
+
 function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(
     (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
@@ -251,6 +269,10 @@ function App() {
   const [csvName, setCsvName] = useState('My startup observations')
   const [csvText, setCsvText] = useState('date,series,value,unit,entity\n2026-01,MRR,12000,USD,My Startup')
   const [registry, setRegistry] = useState<RegistryModel[]>([])
+  const [causalEffects, setCausalEffects] = useState<CausalEffects | null>(null)
+  const [modelPlan, setModelPlan] = useState<ModelBasedPlan | null>(null)
+  const [decisionLoading, setDecisionLoading] = useState('')
+  const [riskAversion, setRiskAversion] = useState(0.65)
 
   useEffect(() => {
     fetch(`${API_URL}/model-metrics`)
@@ -622,6 +644,48 @@ function App() {
     finally { setDataLoading('') }
   }
 
+  async function handleCausalAnalysis() {
+    if (!world) return
+    setDecisionLoading('causal'); setWorldError('')
+    try {
+      const response = await fetch(`${API_URL}/worlds/${world.id}/branches/${world.branch_id}/causal-effects`, { headers: { Authorization: `Bearer ${token}` } })
+      if (!response.ok) throw new Error(`Causal analysis failed (${response.status})`)
+      setCausalEffects(await response.json())
+    } catch (error) { setWorldError(error instanceof Error ? error.message : 'Causal analysis failed') }
+    finally { setDecisionLoading('') }
+  }
+
+  async function handleModelBasedPlan() {
+    if (!world) return
+    setDecisionLoading('planner'); setWorldError('')
+    try {
+      const response = await fetch(`${API_URL}/worlds/${world.id}/branches/${world.branch_id}/model-based-ceo`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ horizon: 12, beam_width: 10, paths: 60, risk_aversion: riskAversion, seed: Date.now() % 2147483647 }),
+      })
+      if (!response.ok) throw new Error(`Model-based planning failed (${response.status})`)
+      setModelPlan(await response.json())
+    } catch (error) { setWorldError(error instanceof Error ? error.message : 'Model-based planning failed') }
+    finally { setDecisionLoading('') }
+  }
+
+  async function executePlannedAction() {
+    if (!world || !modelPlan) return
+    setWorldLoading(true); setWorldError('')
+    try {
+      const action = modelPlan.recommendation.first_action
+      const response = await fetch(`${API_URL}/worlds/${world.id}/branches/${world.branch_id}/advance`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action, shock: null }),
+      })
+      if (!response.ok) throw new Error(`Plan execution failed (${response.status})`)
+      const result = await response.json(); setWorld(result.state); setWorldAction(action)
+      setModelPlan(null); setCausalEffects(null)
+      await refreshWorldNavigation(result.state.id, result.state.branch_id)
+    } catch (error) { setWorldError(error instanceof Error ? error.message : 'Plan execution failed') }
+    finally { setWorldLoading(false) }
+  }
+
   const themeToggle = (
     <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
       {theme === 'dark' ? '☀ Light' : '☾ Dark'}
@@ -813,6 +877,44 @@ function App() {
                 <p className="uncertainty-note">Month {generatedFutures.timeline.at(-1)?.month}: {((generatedFutures.timeline.at(-1)?.survival_probability ?? 0) * 100).toFixed(1)}% generated survival. {generatedFutures.limitations}</p>
               </div>
             )}
+            <div className="decision-lab">
+              <div className="decision-lab-head">
+                <div><strong>Causal Decision Lab</strong><span>Compare interventions, then search 12-month action sequences.</span></div>
+                <div className="decision-buttons">
+                  <button className="btn btn-secondary" onClick={handleCausalAnalysis} disabled={!!decisionLoading}>{decisionLoading === 'causal' && <span className="spinner" />}Estimate Action Effects</button>
+                  <button className="btn btn-primary" onClick={handleModelBasedPlan} disabled={!!decisionLoading}>{decisionLoading === 'planner' && <span className="spinner" />}Ask Model-Based CEO</button>
+                </div>
+              </div>
+              <label className="risk-control"><span>CEO downside protection</span><input type="range" min="0" max="1" step="0.05" value={riskAversion} onChange={(e) => setRiskAversion(Number(e.target.value))} /><b>{Math.round(riskAversion * 100)}%</b></label>
+              {causalEffects && (
+                <div className="causal-results">
+                  <div className="causal-table causal-header"><span>Intervention vs hold</span><span>Cash</span><span>Customers</span><span>Revenue</span><span>Quality</span></div>
+                  {causalEffects.effects.map((effect) => <div className="causal-table" key={effect.action}>
+                    <strong>{effect.action.replace(/_/g, ' ')}</strong>
+                    <span>{effect.effects_vs_hold.cash >= 0 ? '+' : ''}${effect.effects_vs_hold.cash.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                    <span>{effect.effects_vs_hold.customers >= 0 ? '+' : ''}{effect.effects_vs_hold.customers.toFixed(1)}</span>
+                    <span>{effect.effects_vs_hold.revenue >= 0 ? '+' : ''}${effect.effects_vs_hold.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                    <span>{effect.effects_vs_hold.product_quality >= 0 ? '+' : ''}{(effect.effects_vs_hold.product_quality * 100).toFixed(2)}%</span>
+                  </div>)}
+                  <p className="uncertainty-note">Trained on {causalEffects.model.training_counterfactuals.toLocaleString()} paired interventions across {causalEffects.model.training_states} training and {causalEffects.model.held_out_states} held-out states. {causalEffects.limitations}</p>
+                </div>
+              )}
+              {modelPlan && (
+                <div className="plan-results">
+                  <div className="plan-winner">
+                    <span className="recommendation-label">Recommended first action</span>
+                    <strong>{modelPlan.recommendation.first_action.replace(/_/g, ' ')}</strong>
+                    <p>{(modelPlan.recommendation.survival_probability * 100).toFixed(1)}% modeled survival · ${modelPlan.recommendation.cash_p10.toLocaleString()} stress cash · ${modelPlan.recommendation.cash_median.toLocaleString()} median cash</p>
+                    <div className="plan-sequence">{modelPlan.recommendation.planned_sequence.map((action, index) => <span key={`${action}-${index}`}>M{index + 1} {action.replace(/_/g, ' ')}</span>)}</div>
+                    <button className="btn btn-primary" onClick={executePlannedAction} disabled={worldLoading}>Authorize first action and advance</button>
+                  </div>
+                  <div className="plan-comparison">
+                    {modelPlan.action_comparison.slice(0, 5).map((plan) => <div key={plan.first_action}><b>#{plan.rank} {plan.first_action.replace(/_/g, ' ')}</b><span>{(plan.survival_probability * 100).toFixed(0)}% survive</span><span>${plan.cash_p10.toLocaleString()} stress</span></div>)}
+                  </div>
+                  <p className="uncertainty-note">Searched {modelPlan.search.actions} actions over {modelPlan.search.horizon} months with beam width {modelPlan.search.beam_width_per_first_action}, then stress-tested each plan through {modelPlan.search.stochastic_paths_per_plan} generated futures. {modelPlan.limitations}</p>
+                </div>
+              )}
+            </div>
             <div className="branch-tabs">
               {worldBranches.map((branch) => <button className={branch.id === world.branch_id ? 'active' : ''} onClick={() => handleSwitchBranch(branch.id)} key={branch.id}>{branch.name} · M{branch.current_month}</button>)}
             </div>

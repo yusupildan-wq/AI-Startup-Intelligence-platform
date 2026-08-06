@@ -1,0 +1,45 @@
+{
+  "algorithm": "paired-counterfactual S-learner with Extra Trees",
+  "data_source": "synthetic_paired_civilization_interventions_v1",
+  "identification": "Every action is applied to an identical copied pre-action world state with the same deterministic event seed.",
+  "training_states": 560,
+  "held_out_states": 160,
+  "training_counterfactuals": 6720,
+  "state_dimensions": 41,
+  "actions": [
+    "decrease_marketing",
+    "enter_new_market",
+    "fundraise",
+    "hire_engineer",
+    "hire_sales",
+    "hire_support",
+    "hold",
+    "increase_marketing",
+    "invest_in_product",
+    "lower_price",
+    "raise_price",
+    "reduce_headcount"
+  ],
+  "outcomes": {
+    "cash": {
+      "outcome_mae": 110380.071,
+      "outcome_r2": 0.8663,
+      "treatment_effect_mae_vs_hold": 87738.829
+    },
+    "customers": {
+      "outcome_mae": 17.4381,
+      "outcome_r2": 0.1723,
+      "treatment_effect_mae_vs_hold": 3.1238
+    },
+    "revenue": {
+      "outcome_mae": 7148.0433,
+      "outcome_r2": 0.8016,
+      "treatment_effect_mae_vs_hold": 1212.4546
+    },
+    "product_quality": {
+      "outcome_mae": 0.0035,
+      "outcome_r2": 0.8702,
+      "treatment_effect_mae_vs_hold": 0.0014
+    }
+  }
+}

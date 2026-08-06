@@ -14,6 +14,7 @@ MODEL_SPECS = {
     "economy_agents_v1": ("ml/train_economy_agents.py", "python -m ml.train_economy_agents"),
     "world_generator_v1": ("ml/train_world_generator.py", "python -m ml.train_world_generator"),
     "trajectory_model_v1": ("ml/train_trajectory_model.py", "python -m ml.train_trajectory_model"),
+    "causal_actions_v1": ("ml/train_causal_actions.py", "python -m ml.train_causal_actions"),
 }
 
 
