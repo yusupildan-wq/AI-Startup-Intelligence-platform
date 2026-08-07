@@ -907,26 +907,45 @@ function App() {
       </div>
 
       <nav className="workspace-nav" aria-label="Application workspaces">
-        <button className={activeWorkspace === 'world' ? 'active' : ''} onClick={() => setActiveWorkspace('world')}>
-          <span>01</span><strong>World Simulation</strong><small>Run the civilization</small>
+        <button className={`world-nav-button ${activeWorkspace === 'world' ? 'active' : ''}`} onClick={() => setActiveWorkspace('world')}>
+          <span>A</span><strong>World Simulation</strong><small>Standalone civilization environment</small>
         </button>
-        <button className={activeWorkspace === 'intelligence' ? 'active' : ''} onClick={() => setActiveWorkspace('intelligence')}>
-          <span>02</span><strong>AI Intelligence</strong><small>Forecast and decide</small>
-        </button>
-        <button className={activeWorkspace === 'data' ? 'active' : ''} onClick={() => setActiveWorkspace('data')}>
-          <span>03</span><strong>Data & Models</strong><small>Evidence and lineage</small>
-        </button>
-        <button className={activeWorkspace === 'operations' ? 'active' : ''} onClick={() => setActiveWorkspace('operations')}>
-          <span>04</span><strong>Company Operations</strong><small>Create and simulate</small>
-        </button>
+        <div className="company-system-nav">
+          <div className="company-system-label"><span>Connected workflow</span><strong>Company System</strong><small>These three workspaces share one startup record</small></div>
+          <div className="company-system-steps">
+            <button className={activeWorkspace === 'operations' ? 'active' : ''} onClick={() => setActiveWorkspace('operations')}>
+              <span>01</span><strong>Operations</strong><small>Create and simulate</small>
+            </button>
+            <i>→</i>
+            <button className={activeWorkspace === 'intelligence' ? 'active' : ''} onClick={() => setActiveWorkspace('intelligence')}>
+              <span>02</span><strong>AI Intelligence</strong><small>{createdStartupId ? 'Ready to analyze' : 'Requires a startup'}</small>
+            </button>
+            <i>→</i>
+            <button className={activeWorkspace === 'data' ? 'active' : ''} onClick={() => setActiveWorkspace('data')}>
+              <span>03</span><strong>Data & Models</strong><small>Evidence and lineage</small>
+            </button>
+          </div>
+        </div>
       </nav>
 
       <section className="workspace-intro">
-        {activeWorkspace === 'world' && <><span>Workspace 01</span><h2>World Simulation</h2><p>Create a civilization, choose one company action, advance time, and compare alternate timelines. Start here for the multi-agent simulation.</p><div><b>Flow</b> Generate world → read conditions → choose action → analyze → advance or fork</div></>}
-        {activeWorkspace === 'intelligence' && <><span>Workspace 02</span><h2>AI Intelligence</h2><p>Use the reinforcement-learning CEO, Digital Twin, and Strategy Lab on a startup with saved monthly history.</p><div><b>Requirement</b> Create a startup in Company Operations first; additional snapshots improve data coverage.</div></>}
-        {activeWorkspace === 'data' && <><span>Workspace 03</span><h2>Data & Models</h2><p>Import evidence, inspect dataset hashes, and audit every versioned ML artifact powering the platform.</p><div><b>Important</b> Imported data is stored and versioned but does not automatically retrain the synthetic models.</div></>}
-        {activeWorkspace === 'operations' && <><span>Workspace 04</span><h2>Company Operations</h2><p>Create the single-company record, run monthly operations, read OpenAI narration, and inspect saved history.</p><div><b>Flow</b> Create startup → simulate months → refresh history → use AI Intelligence</div></>}
+        {activeWorkspace === 'world' && <><span>Standalone system</span><h2>World Simulation</h2><p>Create a civilization, choose one company action, advance time, and compare alternate timelines. This environment is separate from the connected company workflow.</p><div><b>Flow</b> Generate world → read conditions → choose action → analyze → advance or fork</div></>}
+        {activeWorkspace === 'operations' && <><span>Company step 1 of 3</span><h2>Company Operations</h2><p>Create the shared company record, run monthly operations, read OpenAI narration, and build the history used by AI Intelligence.</p><div><b>Next</b> Create startup → simulate months → refresh history → open AI Intelligence</div></>}
+        {activeWorkspace === 'intelligence' && <><span>Company step 2 of 3</span><h2>AI Intelligence</h2><p>Use the reinforcement-learning CEO, Digital Twin, and Strategy Lab on the startup created in Company Operations.</p><div><b>Input</b> Uses the same company record and saved monthly snapshots from step 1.</div></>}
+        {activeWorkspace === 'data' && <><span>Company step 3 of 3</span><h2>Data & Models</h2><p>Import supporting evidence, inspect dataset hashes, and audit the models used throughout the platform.</p><div><b>Important</b> Imported data is versioned but does not automatically retrain the synthetic models.</div></>}
       </section>
+      {activeWorkspace !== 'world' && (
+        <div className="company-context-bar">
+          <div><span>Active company</span><strong>{createdStartupId ? `${name || 'Startup'} · ID ${createdStartupId}` : 'No company created yet'}</strong></div>
+          <div className="company-progress">
+            <button className={activeWorkspace === 'operations' ? 'active' : ''} onClick={() => setActiveWorkspace('operations')}><b>1</b> Operations</button>
+            <span>→</span>
+            <button className={activeWorkspace === 'intelligence' ? 'active' : ''} disabled={!createdStartupId} onClick={() => setActiveWorkspace('intelligence')}><b>2</b> Intelligence</button>
+            <span>→</span>
+            <button className={activeWorkspace === 'data' ? 'active' : ''} onClick={() => setActiveWorkspace('data')}><b>3</b> Data & Models</button>
+          </div>
+        </div>
+      )}
       {activeWorkspace === 'intelligence' && !createdStartupId && (
         <div className="workspace-empty">
           <span>Setup required</span><h3>Create a startup before opening its intelligence tools.</h3>
