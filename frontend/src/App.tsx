@@ -215,6 +215,14 @@ interface HumanAiComparison {
   human_branch: CivilizationWorld; ai_branch: CivilizationWorld; ai_plan: ModelBasedPlan
 }
 
+interface BranchComparison {
+  left: { branch: WorldBranch; state: CivilizationWorld; decisions: Array<{ month: number; action: string }> }
+  right: { branch: WorldBranch; state: CivilizationWorld; decisions: Array<{ month: number; action: string }> }
+  deltas: { cash: number; revenue: number; customers: number; product_quality: number; founder_ownership: number }
+  timeline: Array<{ month: number; left_cash: number | null; right_cash: number | null; left_revenue: number | null; right_revenue: number | null; left_customers: number | null; right_customers: number | null; cash_delta: number | null; revenue_delta: number | null; customer_delta: number | null }>
+  interpretation: string
+}
+
 type HelpTopic = {
   title: string
   category: string
@@ -305,6 +313,10 @@ function App() {
   const [replayState, setReplayState] = useState<CivilizationWorld | null>(null)
   const [helpTopic, setHelpTopic] = useState<string | null>(null)
   const [activeWorkspace, setActiveWorkspace] = useState<'world' | 'intelligence' | 'data' | 'operations'>('world')
+  const [compareLeftBranch, setCompareLeftBranch] = useState('')
+  const [compareRightBranch, setCompareRightBranch] = useState('')
+  const [branchComparison, setBranchComparison] = useState<BranchComparison | null>(null)
+  const [comparingBranches, setComparingBranches] = useState(false)
 
   useEffect(() => {
     fetch(`${API_URL}/model-metrics`)
@@ -565,7 +577,12 @@ function App() {
       fetch(`${API_URL}/worlds/${worldId}/branches`, { headers }),
     ])
     if (eventsResponse.ok) setWorldEvents(await eventsResponse.json())
-    if (branchesResponse.ok) setWorldBranches(await branchesResponse.json())
+    if (branchesResponse.ok) {
+      const branches: WorldBranch[] = await branchesResponse.json()
+      setWorldBranches(branches)
+      setCompareLeftBranch((current) => branches.some((branch) => branch.id === current) ? current : (branches[0]?.id || ''))
+      setCompareRightBranch((current) => branches.some((branch) => branch.id === current) ? current : (branches.at(-1)?.id || ''))
+    }
   }
 
   async function handleCreateWorld() {
@@ -577,7 +594,7 @@ function App() {
       })
       if (!response.ok) throw new Error(`World creation failed (${response.status})`)
       const created = await response.json()
-      setWorld(created); setWorldEvents([]); setGeneratedFutures(null); setCausalEffects(null); setModelPlan(null); setHumanAi(null)
+      setWorld(created); setWorldEvents([]); setGeneratedFutures(null); setCausalEffects(null); setModelPlan(null); setHumanAi(null); setBranchComparison(null)
       await refreshWorldNavigation(created.id, created.branch_id)
     } catch (error) { setWorldError(error instanceof Error ? error.message : 'World creation failed') }
     finally { setWorldLoading(false) }
@@ -595,6 +612,7 @@ function App() {
     setWorldError('')
     setWorldAction('hold')
     setWorldShock('')
+    setBranchComparison(null)
   }
 
   async function handleAdvanceWorld() {
@@ -607,7 +625,7 @@ function App() {
       })
       if (!response.ok) throw new Error(`World advance failed (${response.status})`)
       const result = await response.json()
-      setWorld(result.state); setWorldShock(''); setGeneratedFutures(null); setCausalEffects(null); setModelPlan(null); setHumanAi(null); setReplayState(null)
+      setWorld(result.state); setWorldShock(''); setGeneratedFutures(null); setCausalEffects(null); setModelPlan(null); setHumanAi(null); setReplayState(null); setBranchComparison(null)
       await refreshWorldNavigation(result.state.id, result.state.branch_id)
     } catch (error) { setWorldError(error instanceof Error ? error.message : 'World advance failed') }
     finally { setWorldLoading(false) }
@@ -624,7 +642,7 @@ function App() {
       })
       if (!response.ok) throw new Error(`Timeline fork failed (${response.status})`)
       const created = await response.json()
-      setWorld(created); setWorldEvents([]); setGeneratedFutures(null); setCausalEffects(null); setModelPlan(null); setHumanAi(null); setReplayState(null)
+      setWorld(created); setWorldEvents([]); setGeneratedFutures(null); setCausalEffects(null); setModelPlan(null); setHumanAi(null); setReplayState(null); setBranchComparison(null)
       await refreshWorldNavigation(created.id, created.branch_id)
     } catch (error) { setWorldError(error instanceof Error ? error.message : 'Timeline fork failed') }
     finally { setWorldLoading(false) }
@@ -634,7 +652,7 @@ function App() {
     if (!world) return
     const response = await fetch(`${API_URL}/worlds/${world.id}/branches/${branchId}`, { headers: { Authorization: `Bearer ${token}` } })
     if (response.ok) {
-      const selected = await response.json(); setWorld(selected); setReplayState(null); setHumanAi(null); setGeneratedFutures(null); setCausalEffects(null); setModelPlan(null)
+      const selected = await response.json(); setWorld(selected); setReplayState(null); setHumanAi(null); setGeneratedFutures(null); setCausalEffects(null); setModelPlan(null); setBranchComparison(null)
       await refreshWorldNavigation(selected.id, selected.branch_id)
     }
   }
@@ -752,6 +770,18 @@ function App() {
     setReplayMonth(month)
     const response = await fetch(`${API_URL}/worlds/${world.id}/branches/${world.branch_id}/replay/${month}`, { headers: { Authorization: `Bearer ${token}` } })
     if (response.ok) setReplayState(await response.json())
+  }
+
+  async function compareBranches() {
+    if (!world || !compareLeftBranch || !compareRightBranch || compareLeftBranch === compareRightBranch) return
+    setComparingBranches(true); setWorldError('')
+    try {
+      const params = new URLSearchParams({ left_branch: compareLeftBranch, right_branch: compareRightBranch })
+      const response = await fetch(`${API_URL}/worlds/${world.id}/compare-branches?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+      if (!response.ok) throw new Error(`Branch comparison failed (${response.status})`)
+      setBranchComparison(await response.json())
+    } catch (error) { setWorldError(error instanceof Error ? error.message : 'Branch comparison failed') }
+    finally { setComparingBranches(false) }
   }
 
   function helpButton(topic: string) {
@@ -1079,6 +1109,47 @@ function App() {
               )}
             </div>
             <div className="workflow-step"><b>04</b><span>Inspect timelines and evidence</span><small>Switch branches, replay snapshots, and audit events</small></div>
+            <div className="branch-comparison-panel">
+              <div className="branch-comparison-head">
+                <div><strong>Fork Difference Viewer</strong><span>Compare saved outcomes from any two timelines.</span></div>
+                {worldBranches.length < 2 && <p>Fork the timeline first. A second branch is required for comparison.</p>}
+              </div>
+              {worldBranches.length >= 2 && <div className="branch-comparison-controls">
+                <label><span>Baseline branch</span><select className="field" value={compareLeftBranch} onChange={(event) => { setCompareLeftBranch(event.target.value); setBranchComparison(null) }}>{worldBranches.map((branch) => <option value={branch.id} key={branch.id}>{branch.name} · M{branch.current_month}</option>)}</select></label>
+                <div className="branch-versus">VS</div>
+                <label><span>Comparison branch</span><select className="field" value={compareRightBranch} onChange={(event) => { setCompareRightBranch(event.target.value); setBranchComparison(null) }}>{worldBranches.map((branch) => <option value={branch.id} key={branch.id}>{branch.name} · M{branch.current_month}</option>)}</select></label>
+                <button className="btn btn-primary" onClick={compareBranches} disabled={comparingBranches || compareLeftBranch === compareRightBranch}>{comparingBranches && <span className="spinner" />}Show Differences</button>
+              </div>}
+              {branchComparison && <div className="branch-comparison-results">
+                <div className="branch-outcome-head">
+                  <div><span>BASELINE</span><strong>{branchComparison.left.branch.name}</strong><small>M{branchComparison.left.state.month} · last action {branchComparison.left.state.companies.player.last_action.replace(/_/g, ' ')}</small></div>
+                  <div><span>COMPARISON</span><strong>{branchComparison.right.branch.name}</strong><small>M{branchComparison.right.state.month} · last action {branchComparison.right.state.companies.player.last_action.replace(/_/g, ' ')}</small></div>
+                </div>
+                <div className="branch-delta-grid">
+                  <div className={branchComparison.deltas.cash >= 0 ? 'positive' : 'negative'}><span>Cash difference</span><strong>{branchComparison.deltas.cash >= 0 ? '+' : '−'}${Math.abs(branchComparison.deltas.cash).toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong><small>comparison vs baseline</small></div>
+                  <div className={branchComparison.deltas.revenue >= 0 ? 'positive' : 'negative'}><span>Revenue difference</span><strong>{branchComparison.deltas.revenue >= 0 ? '+' : '−'}${Math.abs(branchComparison.deltas.revenue).toLocaleString(undefined, { maximumFractionDigits: 0 })}</strong><small>comparison vs baseline</small></div>
+                  <div className={branchComparison.deltas.customers >= 0 ? 'positive' : 'negative'}><span>Customer difference</span><strong>{branchComparison.deltas.customers >= 0 ? '+' : '−'}{Math.abs(branchComparison.deltas.customers).toLocaleString()}</strong><small>comparison vs baseline</small></div>
+                  <div className={branchComparison.deltas.product_quality >= 0 ? 'positive' : 'negative'}><span>Quality difference</span><strong>{branchComparison.deltas.product_quality >= 0 ? '+' : '−'}{(Math.abs(branchComparison.deltas.product_quality) * 100).toFixed(2)}%</strong><small>comparison vs baseline</small></div>
+                </div>
+                <p className="chart-title">Saved cash trajectories</p>
+                <ResponsiveContainer width="100%" height={230}>
+                  <LineChart data={branchComparison.timeline}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border-soft)" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} />
+                    <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`} />
+                    <Tooltip contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }} />
+                    <Legend />
+                    <Line type="monotone" dataKey="left_cash" name={branchComparison.left.branch.name} stroke="#73d7ff" strokeWidth={2} connectNulls />
+                    <Line type="monotone" dataKey="right_cash" name={branchComparison.right.branch.name} stroke="#d9ff67" strokeWidth={2} connectNulls />
+                  </LineChart>
+                </ResponsiveContainer>
+                <div className="branch-decision-trails">
+                  <div><span>{branchComparison.left.branch.name} decisions</span>{branchComparison.left.decisions.length ? branchComparison.left.decisions.map((decision) => <b key={`l-${decision.month}-${decision.action}`}>M{decision.month} {decision.action.replace(/_/g, ' ')}</b>) : <small>No post-fork decisions yet</small>}</div>
+                  <div><span>{branchComparison.right.branch.name} decisions</span>{branchComparison.right.decisions.length ? branchComparison.right.decisions.map((decision) => <b key={`r-${decision.month}-${decision.action}`}>M{decision.month} {decision.action.replace(/_/g, ' ')}</b>) : <small>No post-fork decisions yet</small>}</div>
+                </div>
+                <p className="uncertainty-note">These are persisted simulation outcomes, not generated forecasts. Positive differences mean the comparison branch is currently ahead of the baseline.</p>
+              </div>}
+            </div>
             <div className="branch-tabs">
               {worldBranches.map((branch) => <button className={branch.id === world.branch_id ? 'active' : ''} onClick={() => handleSwitchBranch(branch.id)} key={branch.id}>{branch.name} · M{branch.current_month}</button>)}
             </div>

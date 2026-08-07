@@ -26,7 +26,7 @@ from world import WorldEngine, create_world
 from world.events import ACTION_TYPES, SHOCK_TYPES
 from world.store import (
     assert_world_owner, create_branch_record, create_world_record, ensure_world_tables,
-    list_branches, list_events, list_worlds, load_engine, persist_advance,
+    list_branches, list_events, list_snapshots as list_world_snapshots, list_worlds, load_engine, persist_advance,
 )
 from data.connectors import fetch_census_business_dynamics, fetch_fred_macro, fetch_sec_companyfacts, parse_long_csv
 from data.store import dataset_observations, ensure_data_tables, list_datasets, save_dataset
@@ -434,6 +434,52 @@ def branch_world(world_id: str, branch_id: str, request: BranchWorldRequest,
 def get_world_events(world_id: str, branch_id: str, user_id: int = Depends(verify_token)):
     get_owned_world_engine(world_id, branch_id, user_id)
     return list_events(world_id, branch_id)
+
+
+@app.get("/worlds/{world_id}/compare-branches")
+def compare_world_branches(world_id: str, left_branch: str, right_branch: str,
+                           user_id: int = Depends(verify_token)):
+    left = get_owned_world_engine(world_id, left_branch, user_id)
+    right = get_owned_world_engine(world_id, right_branch, user_id)
+    left_snapshots = {item["month"]: item["state"] for item in list_world_snapshots(world_id, left_branch)}
+    right_snapshots = {item["month"]: item["state"] for item in list_world_snapshots(world_id, right_branch)}
+    months = sorted(set(left_snapshots) | set(right_snapshots))
+    timeline = []
+    for month in months:
+        left_state, right_state = left_snapshots.get(month), right_snapshots.get(month)
+        left_company = left_state["companies"]["player"] if left_state else None
+        right_company = right_state["companies"]["player"] if right_state else None
+        timeline.append({
+            "month": month,
+            "left_cash": left_company["cash"] if left_company else None,
+            "right_cash": right_company["cash"] if right_company else None,
+            "left_revenue": left_company["revenue"] if left_company else None,
+            "right_revenue": right_company["revenue"] if right_company else None,
+            "left_customers": left_company["customers"] if left_company else None,
+            "right_customers": right_company["customers"] if right_company else None,
+            "cash_delta": (right_company["cash"] - left_company["cash"]) if left_company and right_company else None,
+            "revenue_delta": (right_company["revenue"] - left_company["revenue"]) if left_company and right_company else None,
+            "customer_delta": (right_company["customers"] - left_company["customers"]) if left_company and right_company else None,
+        })
+    left_company, right_company = left.state.companies["player"], right.state.companies["player"]
+    branches = {item["id"]: item for item in list_branches(world_id)}
+    def decisions(branch_id):
+        return [{"month": item["month"], "action": item["payload"].get("action")}
+                for item in list_events(world_id, branch_id)
+                if item["type"] == "company_action" and item["actor_id"] == "player"]
+    return {
+        "left": {"branch": branches.get(left_branch), "state": left.state.to_dict(), "decisions": decisions(left_branch)},
+        "right": {"branch": branches.get(right_branch), "state": right.state.to_dict(), "decisions": decisions(right_branch)},
+        "deltas": {
+            "cash": right_company.cash - left_company.cash,
+            "revenue": right_company.revenue - left_company.revenue,
+            "customers": right_company.customers - left_company.customers,
+            "product_quality": right_company.product_quality - left_company.product_quality,
+            "founder_ownership": right_company.founder_ownership - left_company.founder_ownership,
+        },
+        "timeline": timeline,
+        "interpretation": "Positive deltas mean the right branch is ahead of the left branch on that metric.",
+    }
 
 
 @app.post("/worlds/{world_id}/branches/{branch_id}/generate-trajectories")

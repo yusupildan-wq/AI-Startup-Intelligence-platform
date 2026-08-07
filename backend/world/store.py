@@ -132,6 +132,14 @@ def list_events(world_id, branch_id):
             return [dict(row) for row in cur.fetchall()]
 
 
+def list_snapshots(world_id, branch_id):
+    with get_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("""SELECT month, state FROM world_snapshots
+                WHERE world_id = %s AND branch_id = %s ORDER BY month""", (world_id, branch_id))
+            return [{"month": row["month"], "state": row["state"]} for row in cur.fetchall()]
+
+
 def _insert_snapshot(cur, world_id, branch_id, month, state):
     cur.execute("""INSERT INTO world_snapshots (world_id, branch_id, month, state)
         VALUES (%s, %s, %s, %s) ON CONFLICT (world_id, branch_id, month)
