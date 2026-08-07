@@ -215,6 +215,28 @@ interface HumanAiComparison {
   human_branch: CivilizationWorld; ai_branch: CivilizationWorld; ai_plan: ModelBasedPlan
 }
 
+type HelpTopic = {
+  title: string
+  category: string
+  summary: string
+  uses: string
+  how: string[]
+  output: string
+}
+
+const SECTION_HELP: Record<string, HelpTopic> = {
+  models: { title: 'Machine Learning Systems', category: 'Model overview', summary: 'An inventory of the trained systems currently available to the backend.', uses: 'Saved ML artifacts and held-out evaluation metrics.', how: ['Shows which learned systems are active.', 'Displays training scale and evaluation results.', 'Does not run or retrain a model by itself.'], output: 'A technical overview for understanding what powers the application.' },
+  civilization: { title: 'Startup Civilization', category: 'Primary simulation', summary: 'A persistent multi-agent world containing your startup, rivals, customers, employees, investors, products, and the economy.', uses: 'Event-driven simulation plus learned behavioral, economic, generative, causal, and planning models.', how: ['Choose an action and optional external shock.', 'Advance one month to resolve the entire world.', 'Fork timelines, generate futures, compare causal effects, or ask the model-based CEO.'], output: 'A saved world state, event history, branch tree, and month-by-month company outcomes.' },
+  data: { title: 'Real Data Lab', category: 'Data infrastructure', summary: 'Imports official economic/company evidence or your own historical time-series data.', uses: 'FRED, US Census BDS, SEC Company Facts, PostgreSQL, and immutable SHA-256 manifests.', how: ['Select an official connector or paste a longitudinal CSV.', 'The backend normalizes every observation.', 'A content hash and provenance manifest are saved.'], output: 'Versioned datasets that can later support calibration, validation, and retraining.' },
+  registry: { title: 'Experiment & Model Registry', category: 'Model governance', summary: 'The audit trail for every saved trained model—not a simulation control.', uses: 'Artifact hashes, training-code hashes, metrics files, lineage metadata, and reproduction commands.', how: ['Open any model card.', 'Inspect exactly what data and code produced it.', 'Use the command to reproduce its training run.'], output: 'Evidence that each displayed model is a real versioned artifact and has not silently changed.' },
+  startup: { title: 'Create a Startup', category: 'Company setup', summary: 'Creates the single-company record used by the original monthly simulator, Digital Twin, Strategy Lab, and RL AI CEO.', uses: 'PostgreSQL application data; this step is ordinary software rather than ML.', how: ['Enter the company’s starting conditions.', 'Create the record to receive a startup ID.', 'Run monthly simulations to build its history.'], output: 'A persistent startup that can also be inserted as the player inside a civilization.' },
+  ceo: { title: 'AI CEO', category: 'Decision intelligence', summary: 'The original reinforcement-learning policy that ranks the next startup action from the current company state.', uses: 'Offline fitted Q-iteration trained on synthetic startup transitions.', how: ['Ask the policy for a recommendation.', 'Review its explanation and alternatives.', 'Authorize the action to execute one month.'], output: 'A recommended action, policy values, alternatives, and projected AI-controlled trajectory.' },
+  twin: { title: 'Startup Digital Twin', category: 'Predictive intelligence', summary: 'Forecasts several connected startup outcomes three months ahead from one shared feature representation.', uses: 'A trained 2,064-feature multi-output Extra Trees model.', how: ['Collect startup snapshots by simulating months.', 'Run the twin using all currently observed history.', 'Check the data-coverage warning before trusting the result.'], output: 'Forecast revenue, cash, customers, growth, and cash-exhaustion risk.' },
+  strategy: { title: 'AI Strategy Lab', category: 'Decision intelligence', summary: 'Searches pricing, marketing, and staffing configurations across uncertain future simulations.', uses: 'Monte Carlo simulation and trained startup response models.', how: ['Run a 12-month strategy analysis.', 'The engine evaluates many configurations repeatedly.', 'Compare survival and downside—not only the best median result.'], output: 'Ranked strategies with cash ranges, revenue, customers, and survival probability.' },
+  month: { title: 'Simulate Next Month', category: 'Monthly operations', summary: 'Runs one month of the original single-company simulator.', uses: 'Deterministic business logic, trained response models, randomness, and OpenAI for the final written narration.', how: ['Choose marketing, staffing, and whether to fundraise.', 'The backend calculates operating outcomes.', 'OpenAI explains the completed numerical result in plain language.'], output: 'Revenue, costs, burn, runway, acquisition, churn, funding results, and executive narration.' },
+  history: { title: 'History', category: 'Saved evidence', summary: 'Displays the startup snapshots that were actually saved after monthly simulations.', uses: 'PostgreSQL snapshot records and frontend charting; it is not another predictive model.', how: ['Run at least one monthly simulation.', 'Load history.', 'Compare the recorded trajectory over time.'], output: 'A historical chart and auditable month-by-month operating record.' },
+}
+
 function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>(
     (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
@@ -281,6 +303,7 @@ function App() {
   const [humanAi, setHumanAi] = useState<HumanAiComparison | null>(null)
   const [replayMonth, setReplayMonth] = useState(0)
   const [replayState, setReplayState] = useState<CivilizationWorld | null>(null)
+  const [helpTopic, setHelpTopic] = useState<string | null>(null)
 
   useEffect(() => {
     fetch(`${API_URL}/model-metrics`)
@@ -730,6 +753,23 @@ function App() {
     if (response.ok) setReplayState(await response.json())
   }
 
+  function helpButton(topic: string) {
+    return <button className="section-help-button" type="button" onClick={() => setHelpTopic(topic)}><span>?</span> What is this?</button>
+  }
+
+  const helpOverlay = helpTopic && SECTION_HELP[helpTopic] ? (
+    <div className="help-overlay" role="presentation" onMouseDown={() => setHelpTopic(null)}>
+      <section className="help-panel" role="dialog" aria-modal="true" aria-labelledby="help-title" onMouseDown={(event) => event.stopPropagation()}>
+        <div className="help-panel-top"><span>{SECTION_HELP[helpTopic].category}</span><button type="button" onClick={() => setHelpTopic(null)} aria-label="Close explanation">×</button></div>
+        <h2 id="help-title">{SECTION_HELP[helpTopic].title}</h2>
+        <p className="help-summary">{SECTION_HELP[helpTopic].summary}</p>
+        <div className="help-engine"><span>What powers it</span><p>{SECTION_HELP[helpTopic].uses}</p></div>
+        <div className="help-steps"><span>What happens</span><ol>{SECTION_HELP[helpTopic].how.map((step) => <li key={step}>{step}</li>)}</ol></div>
+        <div className="help-output"><span>What you get</span><p>{SECTION_HELP[helpTopic].output}</p></div>
+      </section>
+    </div>
+  ) : null
+
   const themeToggle = (
     <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
       <span className="theme-indicator" />{theme === 'dark' ? 'Light mode' : 'Dark mode'}
@@ -765,8 +805,8 @@ function App() {
         </div>
 
         {modelMetrics && (
-          <div className="card metrics-card">
-            <h2>Machine Learning Systems</h2>
+          <div className="card metrics-card section-tone-governance">
+            <div className="section-title-row"><h2>Machine Learning Systems</h2>{helpButton('models')}</div>
             <p className="card-sub">The trained systems currently powering the startup simulator.</p>
             <div className="ml-system-list">
               <div className="ml-system">
@@ -843,6 +883,7 @@ function App() {
             </details>
           </div>
         )}
+        {helpOverlay}
       </div>
     )
   }
@@ -857,7 +898,14 @@ function App() {
         </div>
       </div>
 
-      <div className="card civilization-card">
+      <div className="section-legend" aria-label="Section color guide">
+        <span className="legend-simulation">Simulation</span><span className="legend-decision">Decisions</span>
+        <span className="legend-predictive">Prediction</span><span className="legend-data">Real data</span>
+        <span className="legend-governance">Model governance</span><span className="legend-operations">Operations</span>
+        <span className="legend-history">History</span>
+      </div>
+
+      <div className="card civilization-card section-tone-simulation">
         <div className="section-heading">
           <div>
             <h2>Startup Civilization</h2>
@@ -870,7 +918,7 @@ function App() {
             </select>
             <button className="btn btn-primary world-launch" onClick={handleCreateWorld} disabled={worldLoading}>{worldLoading && <span className="spinner" />}Generate World</button>
           </div>}
-          {world && <button className="btn btn-secondary new-world-button" onClick={handleNewCivilization}>New Civilization</button>}
+          <div className="section-heading-actions">{helpButton('civilization')}{world && <button className="btn btn-secondary new-world-button" onClick={handleNewCivilization}>New Civilization</button>}</div>
         </div>
         {worldError && <p className="error-text">{worldError}</p>}
         {world && (
@@ -999,13 +1047,14 @@ function App() {
         )}
       </div>
 
-      <div className="card data-lab-card">
+      <div className="card data-lab-card section-tone-data">
         <div className="section-heading">
           <div>
             <h2>Real Data Lab</h2>
             <p className="card-sub">Import versioned official evidence and your own time-series data with hashes and provenance.</p>
           </div>
           <div className="official-data-actions">
+            {helpButton('data')}
             <button className="btn btn-secondary" onClick={() => importOfficialData('fred')} disabled={!!dataLoading}>{dataLoading === 'fred' && <span className="spinner" />}Sync FRED</button>
             <button className="btn btn-secondary" onClick={() => importOfficialData('census_bds')} disabled={!!dataLoading}>{dataLoading === 'census_bds' && <span className="spinner" />}Sync Census BDS</button>
           </div>
@@ -1035,13 +1084,13 @@ function App() {
         </div>
       </div>
 
-      <div className="card registry-card">
+      <div className="card registry-card section-tone-governance">
         <div className="section-heading">
           <div>
             <h2>Experiment & Model Registry</h2>
             <p className="card-sub">Cryptographic lineage for every active learned system—not a hand-written benchmark panel.</p>
           </div>
-          <span className="registry-count">{registry.length} versioned artifacts</span>
+          <div className="section-heading-actions">{helpButton('registry')}<span className="registry-count">{registry.length} versioned artifacts</span></div>
         </div>
         <div className="registry-grid">
           {registry.map((model) => (
@@ -1059,8 +1108,8 @@ function App() {
         </div>
       </div>
 
-      <div className="card">
-        <h2>Create a Startup</h2>
+      <div className="card section-tone-operations">
+        <div className="section-title-row"><h2>Create a Startup</h2>{helpButton('startup')}</div>
         <form onSubmit={handleSubmit}>
           <div className="field-grid">
             <input className="field" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Startup name" />
@@ -1079,7 +1128,7 @@ function App() {
       </div>
 
       {createdStartupId && (
-        <div className="card ceo-card">
+        <div className="card ceo-card section-tone-decision">
           <div className="section-heading">
             <div>
               <h2>AI CEO</h2>
@@ -1089,6 +1138,7 @@ function App() {
               {loadingCeo && <span className="spinner" />}
               Ask AI CEO
             </button>
+            {helpButton('ceo')}
           </div>
           {ceoError && <p className="error-text">{ceoError}</p>}
           {aiCeo && (
@@ -1138,7 +1188,7 @@ function App() {
       )}
 
       {createdStartupId && (
-        <div className="card twin-card">
+        <div className="card twin-card section-tone-predictive">
           <div className="section-heading">
             <div>
               <h2>Startup Digital Twin</h2>
@@ -1148,6 +1198,7 @@ function App() {
               {loadingTwin && <span className="spinner" />}
               Run Digital Twin
             </button>
+            {helpButton('twin')}
           </div>
           {twinError && <p className="error-text">{twinError}</p>}
           {digitalTwin && (
@@ -1175,7 +1226,7 @@ function App() {
       )}
 
       {createdStartupId && (
-        <div className="card strategy-card">
+        <div className="card strategy-card section-tone-decision">
           <div className="section-heading">
             <div>
               <h2>AI Strategy Lab</h2>
@@ -1185,6 +1236,7 @@ function App() {
               {analyzingStrategies && <span className="spinner" />}
               Analyze 12-month strategy
             </button>
+            {helpButton('strategy')}
           </div>
           {strategyError && <p className="error-text">{strategyError}. Restart the backend and try again.</p>}
 
@@ -1220,8 +1272,8 @@ function App() {
       )}
 
       {createdStartupId && (
-        <div className="card">
-          <h2>Simulate Next Month</h2>
+        <div className="card section-tone-operations">
+          <div className="section-title-row"><h2>Simulate Next Month</h2>{helpButton('month')}</div>
           <form onSubmit={handleSimulate}>
             <div className="field-grid">
               <input className="field" type="number" value={simMarketingSpend} onChange={(e) => setSimMarketingSpend(e.target.value)} placeholder="Marketing spend" />
@@ -1284,8 +1336,8 @@ function App() {
       )}
 
       {createdStartupId && (
-        <div className="card">
-          <h2>History</h2>
+        <div className="card section-tone-history">
+          <div className="section-title-row"><h2>History</h2>{helpButton('history')}</div>
           <button className="btn btn-secondary btn-history" onClick={handleViewHistory} disabled={loadingHistory}>
             {loadingHistory && <span className="spinner" />}
             Refresh History
@@ -1317,6 +1369,7 @@ function App() {
           </ul>
         </div>
       )}
+      {helpOverlay}
     </div>
   )
 }
