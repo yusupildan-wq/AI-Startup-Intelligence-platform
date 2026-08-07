@@ -553,7 +553,7 @@ function App() {
       })
       if (!response.ok) throw new Error(`World creation failed (${response.status})`)
       const created = await response.json()
-      setWorld(created); setWorldEvents([])
+      setWorld(created); setWorldEvents([]); setGeneratedFutures(null); setCausalEffects(null); setModelPlan(null); setHumanAi(null)
       await refreshWorldNavigation(created.id, created.branch_id)
     } catch (error) { setWorldError(error instanceof Error ? error.message : 'World creation failed') }
     finally { setWorldLoading(false) }
@@ -583,7 +583,7 @@ function App() {
       })
       if (!response.ok) throw new Error(`World advance failed (${response.status})`)
       const result = await response.json()
-      setWorld(result.state); setWorldShock('')
+      setWorld(result.state); setWorldShock(''); setGeneratedFutures(null); setCausalEffects(null); setModelPlan(null); setHumanAi(null); setReplayState(null)
       await refreshWorldNavigation(result.state.id, result.state.branch_id)
     } catch (error) { setWorldError(error instanceof Error ? error.message : 'World advance failed') }
     finally { setWorldLoading(false) }
@@ -600,7 +600,7 @@ function App() {
       })
       if (!response.ok) throw new Error(`Timeline fork failed (${response.status})`)
       const created = await response.json()
-      setWorld(created); setWorldEvents([])
+      setWorld(created); setWorldEvents([]); setGeneratedFutures(null); setCausalEffects(null); setModelPlan(null); setHumanAi(null); setReplayState(null)
       await refreshWorldNavigation(created.id, created.branch_id)
     } catch (error) { setWorldError(error instanceof Error ? error.message : 'Timeline fork failed') }
     finally { setWorldLoading(false) }
@@ -610,7 +610,7 @@ function App() {
     if (!world) return
     const response = await fetch(`${API_URL}/worlds/${world.id}/branches/${branchId}`, { headers: { Authorization: `Bearer ${token}` } })
     if (response.ok) {
-      const selected = await response.json(); setWorld(selected); setReplayState(null); setHumanAi(null)
+      const selected = await response.json(); setWorld(selected); setReplayState(null); setHumanAi(null); setGeneratedFutures(null); setCausalEffects(null); setModelPlan(null)
       await refreshWorldNavigation(selected.id, selected.branch_id)
     }
   }
@@ -702,7 +702,7 @@ function App() {
       })
       if (!response.ok) throw new Error(`Plan execution failed (${response.status})`)
       const result = await response.json(); setWorld(result.state); setWorldAction(action)
-      setModelPlan(null); setCausalEffects(null)
+      setModelPlan(null); setCausalEffects(null); setGeneratedFutures(null); setHumanAi(null); setReplayState(null)
       await refreshWorldNavigation(result.state.id, result.state.branch_id)
     } catch (error) { setWorldError(error instanceof Error ? error.message : 'Plan execution failed') }
     finally { setWorldLoading(false) }
