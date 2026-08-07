@@ -304,6 +304,7 @@ function App() {
   const [replayMonth, setReplayMonth] = useState(0)
   const [replayState, setReplayState] = useState<CivilizationWorld | null>(null)
   const [helpTopic, setHelpTopic] = useState<string | null>(null)
+  const [activeWorkspace, setActiveWorkspace] = useState<'world' | 'intelligence' | 'data' | 'operations'>('world')
 
   useEffect(() => {
     fetch(`${API_URL}/model-metrics`)
@@ -889,7 +890,7 @@ function App() {
   }
 
   return (
-    <div className="app">
+    <div className="app" data-workspace={activeWorkspace}>
       <div className="topbar">
         <div className="brand-lockup"><span className="brand-mark">S/01</span><h1>Startup<br />Civilization Lab</h1><em>Experimental operating system</em></div>
         <div className="topbar-actions">
@@ -905,7 +906,36 @@ function App() {
         <span className="legend-history">History</span>
       </div>
 
-      <div className="card civilization-card section-tone-simulation">
+      <nav className="workspace-nav" aria-label="Application workspaces">
+        <button className={activeWorkspace === 'world' ? 'active' : ''} onClick={() => setActiveWorkspace('world')}>
+          <span>01</span><strong>World Simulation</strong><small>Run the civilization</small>
+        </button>
+        <button className={activeWorkspace === 'intelligence' ? 'active' : ''} onClick={() => setActiveWorkspace('intelligence')}>
+          <span>02</span><strong>AI Intelligence</strong><small>Forecast and decide</small>
+        </button>
+        <button className={activeWorkspace === 'data' ? 'active' : ''} onClick={() => setActiveWorkspace('data')}>
+          <span>03</span><strong>Data & Models</strong><small>Evidence and lineage</small>
+        </button>
+        <button className={activeWorkspace === 'operations' ? 'active' : ''} onClick={() => setActiveWorkspace('operations')}>
+          <span>04</span><strong>Company Operations</strong><small>Create and simulate</small>
+        </button>
+      </nav>
+
+      <section className="workspace-intro">
+        {activeWorkspace === 'world' && <><span>Workspace 01</span><h2>World Simulation</h2><p>Create a civilization, choose one company action, advance time, and compare alternate timelines. Start here for the multi-agent simulation.</p><div><b>Flow</b> Generate world → read conditions → choose action → analyze → advance or fork</div></>}
+        {activeWorkspace === 'intelligence' && <><span>Workspace 02</span><h2>AI Intelligence</h2><p>Use the reinforcement-learning CEO, Digital Twin, and Strategy Lab on a startup with saved monthly history.</p><div><b>Requirement</b> Create a startup in Company Operations first; additional snapshots improve data coverage.</div></>}
+        {activeWorkspace === 'data' && <><span>Workspace 03</span><h2>Data & Models</h2><p>Import evidence, inspect dataset hashes, and audit every versioned ML artifact powering the platform.</p><div><b>Important</b> Imported data is stored and versioned but does not automatically retrain the synthetic models.</div></>}
+        {activeWorkspace === 'operations' && <><span>Workspace 04</span><h2>Company Operations</h2><p>Create the single-company record, run monthly operations, read OpenAI narration, and inspect saved history.</p><div><b>Flow</b> Create startup → simulate months → refresh history → use AI Intelligence</div></>}
+      </section>
+      {activeWorkspace === 'intelligence' && !createdStartupId && (
+        <div className="workspace-empty">
+          <span>Setup required</span><h3>Create a startup before opening its intelligence tools.</h3>
+          <p>The AI CEO, Digital Twin, and Strategy Lab need one persistent company record to analyze.</p>
+          <button className="btn btn-primary" onClick={() => setActiveWorkspace('operations')}>Go to Company Operations</button>
+        </div>
+      )}
+
+      <div className="card civilization-card section-tone-simulation workspace-world" id="world-simulation">
         <div className="section-heading">
           <div>
             <h2>Startup Civilization</h2>
@@ -923,6 +953,7 @@ function App() {
         {worldError && <p className="error-text">{worldError}</p>}
         {world && (
           <div className="world-control-room">
+            <div className="workflow-step"><b>01</b><span>Read the current world</span><small>Global conditions and company performance</small></div>
             <div className="world-status">
               <span>Month <b>{world.month}</b></span><span>Branch <b>{world.branch_id}</b></span>
               <span>Economy <b>{world.macro.regime}</b></span><span>Demand <b>{world.macro.demand_multiplier.toFixed(2)}×</b></span>
@@ -939,6 +970,7 @@ function App() {
                 </div>
               ))}
             </div>
+            <div className="workflow-step"><b>02</b><span>Choose the next move</span><small>One action and an optional external shock</small></div>
             <div className="world-controls">
               <select className="field" value={worldAction} onChange={(e) => setWorldAction(e.target.value)}>
                 {['hold','raise_price','lower_price','increase_marketing','decrease_marketing','hire_engineer','hire_sales','hire_support','reduce_headcount','fundraise','invest_in_product','enter_new_market'].map((action) => <option key={action} value={action}>{action.replace(/_/g, ' ')}</option>)}
@@ -949,6 +981,7 @@ function App() {
               <button className="btn btn-primary" onClick={handleAdvanceWorld} disabled={worldLoading}>{worldLoading && <span className="spinner" />}Advance Month</button>
               <button className="btn btn-secondary" onClick={handleBranchWorld} disabled={worldLoading}>Fork Timeline</button>
             </div>
+            <div className="workflow-step"><b>03</b><span>Analyze before committing</span><small>Generate uncertainty, causal comparisons, or an AI plan</small></div>
             <button className="btn btn-secondary future-button" onClick={handleGenerateFutures} disabled={generatingFutures}>
               {generatingFutures && <span className="spinner" />}Generate 150 Possible Futures for “{worldAction.replace(/_/g, ' ')}”
             </button>
@@ -1026,6 +1059,7 @@ function App() {
                 </div>
               )}
             </div>
+            <div className="workflow-step"><b>04</b><span>Inspect timelines and evidence</span><small>Switch branches, replay snapshots, and audit events</small></div>
             <div className="branch-tabs">
               {worldBranches.map((branch) => <button className={branch.id === world.branch_id ? 'active' : ''} onClick={() => handleSwitchBranch(branch.id)} key={branch.id}>{branch.name} · M{branch.current_month}</button>)}
             </div>
@@ -1047,7 +1081,7 @@ function App() {
         )}
       </div>
 
-      <div className="card data-lab-card section-tone-data">
+      <div className="card data-lab-card section-tone-data workspace-data" id="real-data-lab">
         <div className="section-heading">
           <div>
             <h2>Real Data Lab</h2>
@@ -1084,7 +1118,7 @@ function App() {
         </div>
       </div>
 
-      <div className="card registry-card section-tone-governance">
+      <div className="card registry-card section-tone-governance workspace-data" id="model-registry">
         <div className="section-heading">
           <div>
             <h2>Experiment & Model Registry</h2>
@@ -1108,7 +1142,7 @@ function App() {
         </div>
       </div>
 
-      <div className="card section-tone-operations">
+      <div className="card section-tone-operations workspace-operations" id="create-startup">
         <div className="section-title-row"><h2>Create a Startup</h2>{helpButton('startup')}</div>
         <form onSubmit={handleSubmit}>
           <div className="field-grid">
@@ -1128,7 +1162,7 @@ function App() {
       </div>
 
       {createdStartupId && (
-        <div className="card ceo-card section-tone-decision">
+        <div className="card ceo-card section-tone-decision workspace-intelligence" id="ai-ceo">
           <div className="section-heading">
             <div>
               <h2>AI CEO</h2>
@@ -1188,7 +1222,7 @@ function App() {
       )}
 
       {createdStartupId && (
-        <div className="card twin-card section-tone-predictive">
+        <div className="card twin-card section-tone-predictive workspace-intelligence" id="digital-twin">
           <div className="section-heading">
             <div>
               <h2>Startup Digital Twin</h2>
@@ -1226,7 +1260,7 @@ function App() {
       )}
 
       {createdStartupId && (
-        <div className="card strategy-card section-tone-decision">
+        <div className="card strategy-card section-tone-decision workspace-intelligence" id="strategy-lab">
           <div className="section-heading">
             <div>
               <h2>AI Strategy Lab</h2>
@@ -1272,7 +1306,7 @@ function App() {
       )}
 
       {createdStartupId && (
-        <div className="card section-tone-operations">
+        <div className="card section-tone-operations workspace-operations" id="monthly-simulation">
           <div className="section-title-row"><h2>Simulate Next Month</h2>{helpButton('month')}</div>
           <form onSubmit={handleSimulate}>
             <div className="field-grid">
@@ -1336,7 +1370,7 @@ function App() {
       )}
 
       {createdStartupId && (
-        <div className="card section-tone-history">
+        <div className="card section-tone-history workspace-operations" id="startup-history">
           <div className="section-title-row"><h2>History</h2>{helpButton('history')}</div>
           <button className="btn btn-secondary btn-history" onClick={handleViewHistory} disabled={loadingHistory}>
             {loadingHistory && <span className="spinner" />}
