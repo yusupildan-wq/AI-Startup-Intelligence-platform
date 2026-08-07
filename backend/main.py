@@ -1,4 +1,6 @@
 import secrets
+import json
+from pathlib import Path
 
 import bcrypt
 import openai
@@ -32,6 +34,7 @@ from data.connectors import fetch_census_business_dynamics, fetch_fred_macro, fe
 from data.store import dataset_observations, ensure_data_tables, list_datasets, save_dataset
 
 app = FastAPI()
+CENTRAL_BENCHMARK_PATH = Path(__file__).resolve().parent / "models" / "central_benchmark_v1_metrics.json"
 
 _churn_model_benchmark = benchmark_churn_models()
 _, _growth_model_metrics = train_growth_model()
@@ -543,6 +546,13 @@ def get_datasets(user_id: int = Depends(verify_token)):
 @app.get("/ml/registry")
 def get_model_registry(user_id: int = Depends(verify_token)):
     return model_registry()
+
+
+@app.get("/benchmark/central")
+def get_central_benchmark(user_id: int = Depends(verify_token)):
+    if not CENTRAL_BENCHMARK_PATH.exists():
+        raise HTTPException(status_code=503, detail="Central benchmark has not been generated")
+    return json.loads(CENTRAL_BENCHMARK_PATH.read_text(encoding="utf-8"))
 
 
 @app.get("/datasets/{import_id}/observations")

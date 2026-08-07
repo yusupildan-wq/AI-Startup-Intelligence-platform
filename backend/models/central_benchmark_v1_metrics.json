@@ -1,0 +1,108 @@
+{
+  "headline": "Matched controller evaluation on unseen synthetic civilizations",
+  "worlds": 24,
+  "horizon_months": 12,
+  "world_seed_start": 81000,
+  "controllers": {
+    "model_based_ceo": {
+      "survival_rate": 1.0,
+      "survival_95_ci": [
+        1.0,
+        1.0
+      ],
+      "median_founder_value_proxy": 3599293.98,
+      "median_founder_value_95_ci": [
+        2173560.0774,
+        5016497.4073
+      ],
+      "median_enterprise_value_proxy": 27409687.48,
+      "median_founder_ownership": 0.117,
+      "median_fundraise_actions": 11.0,
+      "cash_p10": 9720632.81,
+      "median_ending_cash": 26269117.99,
+      "median_ending_revenue": 59352.79,
+      "value_win_rate_vs_transferred_rl_ceo": 0.6667,
+      "value_win_rate_vs_runway_heuristic": 0.875,
+      "value_win_rate_vs_hold": 0.8333,
+      "value_win_rate_vs_random": 0.75
+    },
+    "transferred_rl_ceo": {
+      "survival_rate": 1.0,
+      "survival_95_ci": [
+        1.0,
+        1.0
+      ],
+      "median_founder_value_proxy": 3744698.03,
+      "median_founder_value_95_ci": [
+        1840548.6113,
+        4671516.7104
+      ],
+      "median_enterprise_value_proxy": 4979343.15,
+      "median_founder_ownership": 0.8691,
+      "median_fundraise_actions": 1.0,
+      "cash_p10": 902874.22,
+      "median_ending_cash": 2682470.95,
+      "median_ending_revenue": 118620.77
+    },
+    "runway_heuristic": {
+      "survival_rate": 0.9583,
+      "survival_95_ci": [
+        0.875,
+        1.0
+      ],
+      "median_founder_value_proxy": 1737987.74,
+      "median_founder_value_95_ci": [
+        1541511.493,
+        2629966.2536
+      ],
+      "median_enterprise_value_proxy": 2096405.79,
+      "median_founder_ownership": 0.9,
+      "median_fundraise_actions": 0.0,
+      "cash_p10": 141937.35,
+      "median_ending_cash": 845239.25,
+      "median_ending_revenue": 66963.68
+    },
+    "hold": {
+      "survival_rate": 1.0,
+      "survival_95_ci": [
+        1.0,
+        1.0
+      ],
+      "median_founder_value_proxy": 1688571.23,
+      "median_founder_value_95_ci": [
+        1341560.6779,
+        2922482.1848
+      ],
+      "median_enterprise_value_proxy": 1876190.25,
+      "median_founder_ownership": 0.9,
+      "median_fundraise_actions": 0.0,
+      "cash_p10": 424707.76,
+      "median_ending_cash": 897514.52,
+      "median_ending_revenue": 61026.98
+    },
+    "random": {
+      "survival_rate": 0.9583,
+      "survival_95_ci": [
+        0.875,
+        1.0
+      ],
+      "median_founder_value_proxy": 2854546.94,
+      "median_founder_value_95_ci": [
+        1772080.4929,
+        3240447.0677
+      ],
+      "median_enterprise_value_proxy": 3682811.31,
+      "median_founder_ownership": 0.675,
+      "median_fundraise_actions": 1.0,
+      "cash_p10": 534917.27,
+      "median_ending_cash": 2404503.89,
+      "median_ending_revenue": 65574.52
+    }
+  },
+  "methodology": "Every controller starts from an identical copy of each unseen generated world. The model-based CEO plans once, then all policies execute for 12 months in the event engine.",
+  "primary_metric": "survival_rate",
+  "secondary_metric": "median_founder_value_proxy",
+  "enterprise_value_proxy": "cash + 12x monthly revenue + $500/customer + $100k x product quality",
+  "founder_value_proxy": "enterprise value proxy x retained founder ownership",
+  "limitations": "Evaluation is entirely inside the synthetic civilization. It measures policy performance in this simulator, not real-world startup performance. Fundraising frequency is reported because cash-heavy policies can exploit synthetic capital availability."
+}

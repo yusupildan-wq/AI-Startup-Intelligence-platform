@@ -223,6 +223,20 @@ interface BranchComparison {
   interpretation: string
 }
 
+interface BenchmarkController {
+  survival_rate: number; survival_95_ci: number[]; median_founder_value_proxy: number
+  median_founder_value_95_ci: number[]; median_enterprise_value_proxy: number
+  median_founder_ownership: number; median_fundraise_actions: number
+  cash_p10: number; median_ending_cash: number; median_ending_revenue: number
+  [key: string]: number | number[]
+}
+
+interface CentralBenchmark {
+  headline: string; worlds: number; horizon_months: number; controllers: Record<string, BenchmarkController>
+  methodology: string; primary_metric: string; secondary_metric: string
+  enterprise_value_proxy: string; founder_value_proxy: string; limitations: string
+}
+
 type HelpTopic = {
   title: string
   category: string
@@ -317,6 +331,7 @@ function App() {
   const [compareRightBranch, setCompareRightBranch] = useState('')
   const [branchComparison, setBranchComparison] = useState<BranchComparison | null>(null)
   const [comparingBranches, setComparingBranches] = useState(false)
+  const [centralBenchmark, setCentralBenchmark] = useState<CentralBenchmark | null>(null)
 
   useEffect(() => {
     fetch(`${API_URL}/model-metrics`)
@@ -335,8 +350,9 @@ function App() {
     Promise.all([
       fetch(`${API_URL}/datasets`, { headers }).then((res) => res.ok ? res.json() : []),
       fetch(`${API_URL}/ml/registry`, { headers }).then((res) => res.ok ? res.json() : []),
-    ]).then(([loadedDatasets, loadedRegistry]) => {
-      setDatasets(loadedDatasets); setRegistry(loadedRegistry)
+      fetch(`${API_URL}/benchmark/central`, { headers }).then((res) => res.ok ? res.json() : null),
+    ]).then(([loadedDatasets, loadedRegistry, loadedBenchmark]) => {
+      setDatasets(loadedDatasets); setRegistry(loadedRegistry); setCentralBenchmark(loadedBenchmark)
     })
   }, [token])
 
@@ -801,6 +817,12 @@ function App() {
     </div>
   ) : null
 
+  const benchmarkModel = centralBenchmark?.controllers.model_based_ceo
+  const benchmarkBaselineValues = centralBenchmark ? ['transferred_rl_ceo', 'runway_heuristic', 'hold', 'random'].map((name) => centralBenchmark.controllers[name].median_founder_value_proxy) : []
+  const benchmarkValueLift = benchmarkModel && benchmarkBaselineValues.length
+    ? benchmarkModel.median_founder_value_proxy / Math.max(...benchmarkBaselineValues)
+    : 0
+
   const themeToggle = (
     <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
       <span className="theme-indicator" />{theme === 'dark' ? 'Light mode' : 'Dark mode'}
@@ -929,12 +951,57 @@ function App() {
         </div>
       </div>
 
-      <div className="section-legend" aria-label="Section color guide">
-        <span className="legend-simulation">Simulation</span><span className="legend-decision">Decisions</span>
-        <span className="legend-predictive">Prediction</span><span className="legend-data">Real data</span>
-        <span className="legend-governance">Model governance</span><span className="legend-operations">Operations</span>
-        <span className="legend-history">History</span>
-      </div>
+      {centralBenchmark && benchmarkModel && <section className="central-benchmark">
+        <div className="benchmark-hero">
+          <div>
+            <span className="benchmark-eyebrow">Central ML benchmark · reproducible experiment</span>
+            <h2>Can a learned world model make better startup decisions?</h2>
+            <p>Five controllers start from identical copies of {centralBenchmark.worlds} unseen civilizations and operate for {centralBenchmark.horizon_months} months. This is the project’s primary evaluation—not another feature card.</p>
+          </div>
+          <div className="benchmark-headline-result">
+            <span>Model-based CEO</span><strong>{(benchmarkModel.survival_rate * 100).toFixed(1)}%</strong><b>survival</b>
+            <small>{benchmarkValueLift.toFixed(2)}× median founder-value proxy vs the strongest baseline</small>
+          </div>
+        </div>
+        <div className="benchmark-protocol">
+          <span><b>{centralBenchmark.worlds}</b> unseen matched worlds</span><span><b>5</b> controllers</span>
+          <span><b>{centralBenchmark.horizon_months}</b> months</span><span><b>95%</b> bootstrap intervals</span>
+          <code>python -m ml.evaluate_central_benchmark</code>
+        </div>
+        <div className="benchmark-finding">
+          <span>Key finding</span>
+          <p>The planner reached 100% survival but fundraised a median <b>{benchmarkModel.median_fundraise_actions.toFixed(0)} times</b>, reducing founder ownership to <b>{(benchmarkModel.median_founder_ownership * 100).toFixed(1)}%</b>. The transferred RL CEO also reached 100% survival, retained <b>{(centralBenchmark.controllers.transferred_rl_ceo.median_founder_ownership * 100).toFixed(1)}%</b>, and produced the stronger median founder-value proxy. The benchmark exposed reward misspecification instead of confirming the planner.</p>
+        </div>
+        <div className="benchmark-table" role="table" aria-label="Central controller benchmark">
+          <div className="benchmark-row benchmark-table-head" role="row"><span>Controller</span><span>Survival</span><span>Founder value</span><span>Stress cash</span><span>Ownership</span><span>Fundraises</span></div>
+          {[
+            ['model_based_ceo', 'Model-based CEO', 'Learned planning'],
+            ['transferred_rl_ceo', 'RL CEO', 'Transferred policy'],
+            ['runway_heuristic', 'Runway heuristic', 'Rules'],
+            ['hold', 'Always hold', 'Fixed baseline'],
+            ['random', 'Random actions', 'Random baseline'],
+          ].map(([key, label, kind]) => {
+            const result = centralBenchmark.controllers[key]
+            return <div className={`benchmark-row ${key === 'model_based_ceo' ? 'benchmark-winner' : ''}`} role="row" key={key}>
+              <span><strong>{label}</strong><small>{kind}</small></span>
+              <span><strong>{(result.survival_rate * 100).toFixed(1)}%</strong><small>{(result.survival_95_ci[0] * 100).toFixed(0)}–{(result.survival_95_ci[1] * 100).toFixed(0)}% CI</small></span>
+              <span><strong>${(result.median_founder_value_proxy / 1e6).toFixed(2)}M</strong><small>median proxy</small></span>
+              <span><strong>${(result.cash_p10 / 1e6).toFixed(2)}M</strong><small>10th percentile</small></span>
+              <span><strong>{(result.median_founder_ownership * 100).toFixed(1)}%</strong><small>median retained</small></span>
+              <span><strong>{result.median_fundraise_actions.toFixed(1)}</strong><small>median actions</small></span>
+            </div>
+          })}
+        </div>
+        <div className="benchmark-reading">
+          <div><span>Method</span><p>{centralBenchmark.methodology}</p></div>
+          <div><span>Critical limitation</span><p>{centralBenchmark.limitations}</p></div>
+          <button className="btn btn-primary" onClick={() => setActiveWorkspace('world')}>Explore the experiment</button>
+        </div>
+      </section>}
+
+      <details className="section-legend-details"><summary>Section color guide</summary><div className="section-legend" aria-label="Section color guide">
+        <span className="legend-simulation">Simulation</span><span className="legend-decision">Decisions</span><span className="legend-predictive">Prediction</span><span className="legend-data">Real data</span><span className="legend-governance">Model governance</span><span className="legend-operations">Operations</span><span className="legend-history">History</span>
+      </div></details>
 
       <nav className="workspace-nav" aria-label="Application workspaces">
         <button className={`world-nav-button ${activeWorkspace === 'world' ? 'active' : ''}`} onClick={() => setActiveWorkspace('world')}>
