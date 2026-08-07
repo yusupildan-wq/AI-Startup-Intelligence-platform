@@ -559,6 +559,20 @@ function App() {
     finally { setWorldLoading(false) }
   }
 
+  function handleNewCivilization() {
+    setWorld(null)
+    setWorldEvents([])
+    setWorldBranches([])
+    setGeneratedFutures(null)
+    setCausalEffects(null)
+    setModelPlan(null)
+    setHumanAi(null)
+    setReplayState(null)
+    setWorldError('')
+    setWorldAction('hold')
+    setWorldShock('')
+  }
+
   async function handleAdvanceWorld() {
     if (!world) return
     setWorldLoading(true); setWorldError('')
@@ -856,6 +870,7 @@ function App() {
             </select>
             <button className="btn btn-primary world-launch" onClick={handleCreateWorld} disabled={worldLoading}>{worldLoading && <span className="spinner" />}Generate World</button>
           </div>}
+          {world && <button className="btn btn-secondary new-world-button" onClick={handleNewCivilization}>New Civilization</button>}
         </div>
         {worldError && <p className="error-text">{worldError}</p>}
         {world && (

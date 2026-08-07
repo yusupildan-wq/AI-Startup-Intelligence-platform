@@ -862,6 +862,7 @@
 .btn-secondary { background: var(--bg-elevated-2); }
 
 .world-generator-controls { align-items: stretch; }
+.new-world-button { width: auto; min-width: 180px; align-self: flex-start; }
 .world-status {
   padding: 0;
   border: 1px solid var(--border);
